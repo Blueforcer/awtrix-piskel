@@ -28,7 +28,9 @@
       if (sizesParam) {
         var first = decodeURIComponent(sizesParam[1]).split(",")[0];
         var wh = /^(\d+)x(\d+)$/.exec(first.trim());
-        if (wh) { size = { width: parseInt(wh[1], 10), height: parseInt(wh[2], 10) }; }
+        if (wh) {
+          size = { width: parseInt(wh[1], 10), height: parseInt(wh[2], 10) };
+        }
       }
       var fps = Constants.DEFAULT.FPS;
       var descriptor = new pskl.model.piskel.Descriptor("New Piskel", "");

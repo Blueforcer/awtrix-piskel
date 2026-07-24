@@ -11,17 +11,22 @@
     var v = "";
     try {
       v = getComputedStyle(document.documentElement)
-        .getPropertyValue("--awx-letterbox").trim();
-    } catch (e) { /* no DOM (headless) */ }
+        .getPropertyValue("--awx-letterbox")
+        .trim();
+    } catch (e) {
+      /* no DOM (headless) */
+    }
     return v || Constants.ZOOMED_OUT_BACKGROUND_COLOR;
   }
   if (typeof document !== "undefined" && document.documentElement) {
     letterboxColor = readLetterbox();
     if (typeof MutationObserver !== "undefined") {
-      new MutationObserver(function () { letterboxColor = readLetterbox(); })
-        .observe(document.documentElement, {
-          attributes: true, attributeFilter: ["data-theme"]
-        });
+      new MutationObserver(function () {
+        letterboxColor = readLetterbox();
+      }).observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ["data-theme"]
+      });
     }
   }
   // Exposed so CachedFrameRenderer can include the color in its cache key — a

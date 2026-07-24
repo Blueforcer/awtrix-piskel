@@ -49,7 +49,9 @@
   };
 
   ns.AwtrixController.prototype.destroy = function () {
-    this.unsubscribes.forEach(function (off) { off(); });
+    this.unsubscribes.forEach(function (off) {
+      off();
+    });
     this.unsubscribes = [];
     this.superclass.destroy.call(this);
   };
@@ -80,15 +82,21 @@
   };
 
   ns.AwtrixController.prototype.onLiveState_ = function (on) {
-    if (this.liveCheckbox) { this.liveCheckbox.checked = !!on; }
+    if (this.liveCheckbox) {
+      this.liveCheckbox.checked = !!on;
+    }
   };
 
   ns.AwtrixController.prototype.setStatus_ = function (text) {
-    if (this.status) { this.status.textContent = text || ""; }
+    if (this.status) {
+      this.status.textContent = text || "";
+    }
   };
 
   ns.AwtrixController.prototype.onListResult_ = function (files) {
-    if (!this.openList) { return; }
+    if (!this.openList) {
+      return;
+    }
     this.openList.innerHTML = "";
     var placeholder = document.createElement("option");
     placeholder.value = "";

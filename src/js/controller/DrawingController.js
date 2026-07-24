@@ -145,10 +145,18 @@
     // passive:false so the touch handlers below can preventDefault() and stop
     // the page scrolling/zooming under a stroke (the drawing gesture owns the
     // canvas; touches elsewhere are left alone for native scrolling).
-    window.addEventListener("touchstart", this.onTouchstart_.bind(this), { passive: false });
-    window.addEventListener("touchmove", this.onTouchmove_.bind(this), { passive: false });
-    window.addEventListener("touchend", this.onTouchend_.bind(this), { passive: false });
-    window.addEventListener("touchcancel", this.onTouchend_.bind(this), { passive: false });
+    window.addEventListener("touchstart", this.onTouchstart_.bind(this), {
+      passive: false
+    });
+    window.addEventListener("touchmove", this.onTouchmove_.bind(this), {
+      passive: false
+    });
+    window.addEventListener("touchend", this.onTouchend_.bind(this), {
+      passive: false
+    });
+    window.addEventListener("touchcancel", this.onTouchend_.bind(this), {
+      passive: false
+    });
 
     // Deactivate right click:
     document.body.addEventListener(
@@ -219,12 +227,18 @@
        the drawer keep native scrolling. */
   ns.DrawingController.prototype.isCanvasTouch_ = function (event) {
     var target = event.target;
-    return !!(target && target.closest && target.closest("#drawing-canvas-container"));
+    return !!(
+      target &&
+      target.closest &&
+      target.closest("#drawing-canvas-container")
+    );
   };
 
   ns.DrawingController.prototype.readPinch_ = function (event) {
-    var a = event.touches[0], b = event.touches[1];
-    var dx = b.clientX - a.clientX, dy = b.clientY - a.clientY;
+    var a = event.touches[0],
+      b = event.touches[1];
+    var dx = b.clientX - a.clientX,
+      dy = b.clientY - a.clientY;
     return {
       dist: Math.sqrt(dx * dx + dy * dy),
       cx: (a.clientX + b.clientX) / 2,
@@ -241,11 +255,15 @@
         changedTouches: [{ clientX: -10000, clientY: -10000 }],
         preventDefault: function () {}
       });
-    } catch (e) { /* no stroke active */ }
+    } catch (e) {
+      /* no stroke active */
+    }
   };
 
   ns.DrawingController.prototype.onTouchstart_ = function (event) {
-    if (!this.isCanvasTouch_(event)) { return; }
+    if (!this.isCanvasTouch_(event)) {
+      return;
+    }
     if (event.touches.length >= 2) {
       event.preventDefault();
       this.endTouchStroke_();
@@ -260,17 +278,24 @@
   ns.DrawingController.prototype.onTouchmove_ = function (event) {
     if (this.gesture_) {
       event.preventDefault();
-      if (event.touches.length < 2) { return; }
+      if (event.touches.length < 2) {
+        return;
+      }
       var info = this.readPinch_(event);
       this.dragHandler.updateDrag(info.cx, info.cy);
       var delta = info.dist - this.gesture_.dist;
       if (Math.abs(delta) > 4) {
-        this.updateZoom_(delta / 40, this.getSpriteCoordinates(info.cx, info.cy));
+        this.updateZoom_(
+          delta / 40,
+          this.getSpriteCoordinates(info.cx, info.cy)
+        );
         this.gesture_.dist = info.dist;
       }
       return;
     }
-    if (!this.isCanvasTouch_(event)) { return; }
+    if (!this.isCanvasTouch_(event)) {
+      return;
+    }
     event.preventDefault(); // stop the page scrolling under the stroke
     this.onMousemove_(event);
   };
@@ -278,12 +303,18 @@
   ns.DrawingController.prototype.onTouchend_ = function (event) {
     if (this.gesture_) {
       if (event.touches.length < 2) {
-        try { this.dragHandler.stopDrag(); } catch (e) { /* was not dragging */ }
+        try {
+          this.dragHandler.stopDrag();
+        } catch (e) {
+          /* was not dragging */
+        }
         this.gesture_ = null;
       }
       return;
     }
-    if (!this.isCanvasTouch_(event)) { return; }
+    if (!this.isCanvasTouch_(event)) {
+      return;
+    }
     this.onMouseup_(event);
   };
 

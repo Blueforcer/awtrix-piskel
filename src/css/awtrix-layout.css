@@ -175,7 +175,9 @@
   transform: translateX(14px);
   visibility: hidden;
   pointer-events: none;
-  transition: opacity 160ms ease-out, transform 160ms ease-out,
+  transition:
+    opacity 160ms ease-out,
+    transform 160ms ease-out,
     visibility 0s 160ms;
 }
 .right-sticky-section.expanded .drawer {
@@ -183,7 +185,9 @@
   transform: none;
   visibility: visible;
   pointer-events: auto;
-  transition: opacity 160ms ease-out, transform 160ms ease-out;
+  transition:
+    opacity 160ms ease-out,
+    transform 160ms ease-out;
 }
 .drawer-content {
   width: min(360px, calc(100vw - 2 * var(--awx-rail-w)));

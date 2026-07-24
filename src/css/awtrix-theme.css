@@ -14,7 +14,7 @@
  * webui/index.html so the embed matches the host exactly.
  */
 
-:root[data-theme='dark'] {
+:root[data-theme="dark"] {
   --bg: #0d1117;
   --card: #161b22;
   --card2: #1c2129;
@@ -24,10 +24,10 @@
   --acc: #58a6ff;
   --pri: #1f6feb;
   --highlight-color: #58a6ff; /* Piskel accent */
-  --awx-letterbox: #1c2129;   /* canvas letterbox — read by FrameRenderer */
+  --awx-letterbox: #1c2129; /* canvas letterbox — read by FrameRenderer */
   color-scheme: dark;
 }
-:root[data-theme='light'] {
+:root[data-theme="light"] {
   --bg: #ffffff;
   --card: #f6f8fa;
   --card2: #eaeef2;
@@ -37,7 +37,7 @@
   --acc: #0969da;
   --pri: #0969da;
   --highlight-color: #0969da;
-  --awx-letterbox: #eaeef2;   /* canvas letterbox — read by FrameRenderer */
+  --awx-letterbox: #eaeef2; /* canvas letterbox — read by FrameRenderer */
   color-scheme: light;
 }
 
@@ -75,11 +75,11 @@ html[data-theme] .preview-tile:hover {
 
 /* Piskel's tool/settings glyphs are white-only sprites — they need a dark
    chip behind them even in the light theme. */
-html[data-theme='light'] .tool-icon,
-html[data-theme='light'] #application-action-section {
+html[data-theme="light"] .tool-icon,
+html[data-theme="light"] #application-action-section {
   background-color: #30363d;
 }
-html[data-theme='light'] .tool-icon:hover {
+html[data-theme="light"] .tool-icon:hover {
   background-color: #484f58;
 }
 
@@ -135,7 +135,9 @@ html[data-theme] #drawing-canvas-container {
   margin-bottom: 6px;
   padding: 6px 9px;
 }
-.awtrix-settings .button { margin-bottom: 4px; }
+.awtrix-settings .button {
+  margin-bottom: 4px;
+}
 .awtrix-settings .save-status {
   min-height: 1.2em;
   color: var(--dim);
