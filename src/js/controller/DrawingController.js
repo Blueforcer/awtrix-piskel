@@ -658,12 +658,17 @@
     return el ? el.getBoundingClientRect() : { width: 0, height: 0 };
   };
 
+  // The canvas must exactly fill the stage cell: the drawing canvas is
+  // position:relative inside a text-align:center container, so any size
+  // difference from the container centers it and shifts it away from the
+  // container's left edge — which is what getCoordinates() measures against,
+  // putting the hover highlight off from the real pixels. No comfort margin.
   ns.DrawingController.prototype.getAvailableHeight_ = function () {
-    return Math.max(0, this.getStageRect_().height - 10);
+    return Math.max(0, this.getStageRect_().height);
   };
 
   ns.DrawingController.prototype.getAvailableWidth_ = function () {
-    return Math.max(0, this.getStageRect_().width - 10);
+    return Math.max(0, this.getStageRect_().width);
   };
 
   ns.DrawingController.prototype.getContainerHeight_ = function () {
