@@ -69,11 +69,46 @@
       '<div><img style="max-width:32px;" src="' + src + '"/></div>';
   };
 
+  /**
+   * Encode every frame with the exact-palette encoder.
+   * @return {String|null} base64 GIF, or null when the sprite exceeds 256 colors.
+   */
+  ns.GifExportController.prototype.renderCompactGif_ = function (zoom, fps) {
+    var width = this.piskelController.getWidth();
+    var height = this.piskelController.getHeight();
+    var frames = [];
+    for (var i = 0; i < this.piskelController.getFrameCount(); i++) {
+      var render = this.piskelController.renderFrameAt(i, true);
+      frames.push(
+        zoom === 1 ? render : pskl.utils.ImageResizer.scale(render, zoom)
+      );
+    }
+    return pskl.utils.GifEncoder.encodeBase64({
+      width: width * zoom,
+      height: height * zoom,
+      frames: frames,
+      delayMs: 1000 / fps,
+      repeat: this.getRepeatSetting_() ? 0 : -1
+    });
+  };
+
   ns.GifExportController.prototype.renderAsImageDataAnimatedGIF = function (
     zoom,
     fps,
     cb
   ) {
+    // AWTRIX NG: pixel art uses a handful of colors, so encode with a palette
+    // built from exactly those (see utils/GifEncoder). gif.js always writes a
+    // full 256-entry table and quantizes every frame, which makes a 32x8 icon
+    // an order of magnitude larger than it needs to be — too large to fit one
+    // notification body for the live matrix preview. The quantizing path below
+    // still runs for sprites with more than 256 distinct colors.
+    var compact = this.renderCompactGif_(zoom, fps);
+    if (compact !== null) {
+      cb("data:image/gif;base64," + compact);
+      return;
+    }
+
     var currentColors = pskl.app.currentColorsService.getCurrentColors();
 
     var layers = this.piskelController.getLayers();

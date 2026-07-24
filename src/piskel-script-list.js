@@ -19,6 +19,7 @@ exports.scripts = [
   "js/utils/Array.js",
   "js/utils/Base64.js",
   "js/utils/BlobUtils.js",
+  "js/utils/GifEncoder.js",
   "js/utils/CanvasUtils.js",
   "js/utils/ColorUtils.js",
   "js/utils/DateUtils.js",

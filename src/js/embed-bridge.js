@@ -152,10 +152,12 @@
     });
   }
 
-  // One AWTRIX notification body caps at ~8 KB on the device. A base64 bitmap
-  // is well under that (~1 KB at 32x8, ~4 KB at 32x32); an animated GIF can
-  // exceed it with many frames or colors, so it is only used while playing and
-  // only when it fits — otherwise the current frame is mirrored as a bitmap.
+  // One AWTRIX notification body caps at ~8 KB on the device. Both payloads sit
+  // far below that — a base64 bitmap is ~1 KB at 32x8, and the exact-palette GIF
+  // encoder keeps a 7-frame 32x8 animation under 600 bytes. The guard only
+  // catches pathological sprites (hundreds of frames, or a photographic import
+  // that falls back to the quantizing encoder); those mirror as a still frame
+  // rather than failing the request.
   var LIVE_BODY_MAX = 7000;
 
   // A still sprite goes as a compact base64 bitmap (the AWTRIX `db` command's
