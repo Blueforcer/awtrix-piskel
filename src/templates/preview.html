@@ -50,32 +50,28 @@
       <div class="canvas-background"></div>
     </div>
   </div>
-  <div class="awtrix-fps-row">
+  <!-- AWTRIX transport: play/stop + fps, one control group; the onion-skin
+       toggle is a view option and lives in the right rail, not here. -->
+  <div class="awtrix-transport">
     <button
       type="button"
       class="awtrix-play-toggle"
       title="Play / stop the animation"
       data-test-id="awtrix-play-toggle"
     ></button>
-    <div
-      rel="tooltip"
-      data-placement="bottom"
-      class="piskel-icon-onion preview-toggle-onion-skin"
-      data-test-id="onion-skin-toggle-button"
-    ></div>
-    <span
-      id="display-fps"
-      class="display-fps"
-      data-test-id="fps-display"
-    ></span>
-    <input
-      id="preview-fps"
-      class="range-fps"
-      type="range"
-      min="0"
-      max="24"
-      data-test-id="fps-slider"
-    >
+    <div class="awtrix-fps">
+      <input
+        id="preview-fps"
+        class="range-fps"
+        type="range"
+        min="0"
+        max="24"
+        data-test-id="fps-slider"
+      >
+      <span class="awtrix-fps-readout">
+        <span id="display-fps" class="display-fps" data-test-id="fps-display"></span>
+        <span class="awtrix-fps-unit">fps</span>
+      </span>
+    </div>
   </div>
-  <div></div>
 </div>

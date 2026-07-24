@@ -289,7 +289,9 @@
       this.fpsRangeInput.value = 0;
       // set proper value
       this.fpsRangeInput.value = fps;
-      this.fpsCounterDisplay.innerHTML = fps + " FPS";
+      // AWTRIX NG: the "fps" unit label is rendered separately in the transport
+      // readout, so the counter shows just the number.
+      this.fpsCounterDisplay.textContent = fps;
     }
   };
 

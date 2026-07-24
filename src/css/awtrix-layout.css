@@ -262,9 +262,9 @@
 /* ------------------------------------------------------------------ */
 
 /* The right column holds the animated preview, layers, transformations,
-   palettes list and the zoom readout. Layers/transform/palettes/zoom are not
-   shown; the animated preview (playback window) and its FPS/onion/play row
-   are parked in the frames dock. */
+   palettes list and the zoom readout. Only the playback transport (monitor +
+   play/stop + fps) is kept, docked at the right end of the frames dock as one
+   panel; layers/transform/palettes/zoom/onion are elsewhere. */
 .right-column {
   position: fixed;
   right: var(--awx-rail-w);
@@ -275,71 +275,143 @@
   height: var(--awx-dock-h);
   padding: 0;
   z-index: 901;
-  pointer-events: none; /* only preview + FPS row are interactive */
+  pointer-events: none; /* only the transport panel is interactive */
   display: block;
 }
 .right-column .layers-list-container,
 .right-column .transformations-container,
 .right-column .palettes-list-container,
 .right-column .cursor-coordinates,
-.right-column .preview-contextual-actions,
-.cheatsheet-link,
-.performance-link {
+.right-column .preview-contextual-actions {
   display: none;
 }
+
+/* Transport panel — a distinct card butting against the frames timeline. */
 .right-column .preview-container {
+  pointer-events: auto;
   height: 100%;
   display: flex;
-  align-items: stretch;
+  align-items: center;
+  gap: 14px;
+  padding: 0 18px 0 16px;
+  background: var(--card, #161b22);
+  border-left: 1px solid var(--awx-hairline);
+  box-shadow: inset 1px 0 0 var(--bg, #0d1117);
 }
-/* Playback window: a PREVIEW_SIZE (96px) slot showing the running animation.
-   PreviewController centers the canvas inside it via inline margins; override
-   Piskel's fixed 200px wrapper box so it fits the dock height. */
+
+/* Monitor: the running animation in a recessed display frame. */
 .right-column .minimap-container {
-  pointer-events: auto;
-  width: 96px;
-  height: 100% !important;
+  width: 108px;
+  height: 84px;
   margin: 0 !important;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-left: 1px solid var(--awx-hairline);
-  padding-left: 10px;
+  background: var(--awx-letterbox, #1c2129);
+  border: 1px solid var(--awx-hairline);
+  border-radius: 8px;
+  box-shadow:
+    inset 0 0 0 1px var(--bg, #0d1117),
+    inset 0 2px 8px #0007;
 }
 .right-column .minimap-container #animated-preview-canvas-container {
   margin: 0 !important;
 }
-.awtrix-fps-row {
-  pointer-events: auto;
+
+/* Play/stop + fps, read as one transport cluster. */
+.awtrix-transport {
   display: flex;
   align-items: center;
-  gap: 10px;
-  height: 100%;
-  padding: 0 16px;
-  background: var(--card, #161b22);
+  gap: 14px;
+  height: 56px;
+  padding: 0 4px 0 14px;
+  border-left: 1px solid var(--awx-hairline);
 }
-/* Play/stop toggle: ▶ while stopped, ⏹ while playing. */
 .awtrix-play-toggle {
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--awx-hairline);
-  border-radius: 6px;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
   background: var(--card2, #1c2129);
+  box-shadow: inset 0 0 0 1px var(--awx-hairline);
   color: var(--fg, #e6edf3);
-  font-size: 13px;
-  line-height: 1;
+  font-size: 14px;
+  line-height: 40px;
   cursor: pointer;
   padding: 0;
+  transition: background 120ms ease, box-shadow 120ms ease, color 120ms ease;
 }
 .awtrix-play-toggle::before {
   content: "▶";
+  position: relative;
+  left: 1px; /* optically center the triangle */
+}
+.awtrix-play-toggle.playing {
+  background: var(--pri, #1f6feb);
+  color: #fff;
+  box-shadow: inset 0 0 0 1px var(--pri, #1f6feb), 0 0 0 4px color-mix(in srgb, var(--pri, #1f6feb) 22%, transparent);
 }
 .awtrix-play-toggle.playing::before {
-  content: "⏹";
+  content: "⏸";
+  left: 0;
 }
 .awtrix-play-toggle:hover {
-  border-color: var(--acc, #58a6ff);
+  color: var(--acc, #58a6ff);
+}
+.awtrix-play-toggle.playing:hover {
+  color: #fff;
+  filter: brightness(1.08);
+}
+
+/* FPS: slider stacked over a monospace readout, tight as one unit. */
+.awtrix-fps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.awtrix-fps .range-fps {
+  width: 132px;
+  accent-color: var(--acc, #58a6ff);
+  margin: 0;
+}
+.awtrix-fps-readout {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  line-height: 1;
+}
+.awtrix-fps-readout .display-fps {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fg, #e6edf3);
+  min-width: 2ch;
+  text-align: right;
+}
+.awtrix-fps-unit {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim, #8b949e);
+}
+
+/* Onion-skin view toggle in the right rail. */
+.awtrix-onion-toggle {
+  color: var(--dim, #8b949e);
+  font-size: 22px;
+  line-height: 46px;
+  text-align: center;
+  cursor: pointer;
+}
+.awtrix-onion-toggle.preview-toggle-onion-skin-enabled {
+  color: var(--acc, #58a6ff);
+  box-shadow: inset 0 0 0 1px var(--acc, #58a6ff);
+}
+.cheatsheet-link,
+.performance-link {
+  display: none;
 }
 .awtrix-fps-row .display-fps {
   font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
@@ -422,24 +494,41 @@
     right: 0;
     left: var(--awx-rail-w);
     width: auto;
-    height: 38px;
+    height: 42px;
   }
-  /* The 38px second row has no room for the 96px playback window — the play
-     toggle stays, and with Live on the matrix itself shows the animation. */
+  /* The slim second row has no room for the 108px monitor — drop it; with Live
+     on the matrix itself is the monitor. Transport collapses to one row. */
+  .right-column .preview-container {
+    height: 100%;
+    justify-content: flex-end;
+    gap: 0;
+    padding: 0 12px;
+    border-left: none;
+    border-top: 1px solid var(--awx-hairline);
+    box-shadow: none;
+  }
   .right-column .minimap-container {
     display: none;
   }
-  .awtrix-fps-row {
-    justify-content: flex-end;
-    border-top: 1px solid var(--awx-hairline);
-    padding: 0 12px;
+  .awtrix-transport {
+    height: 100%;
+    border-left: none;
+    padding: 0;
+    gap: 12px;
   }
   .awtrix-play-toggle {
-    width: 30px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
   }
-  .awtrix-fps-row .range-fps {
-    width: 90px;
+  /* One horizontal row on phones: slider + readout side by side. */
+  .awtrix-fps {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+  .awtrix-fps .range-fps {
+    width: 96px;
   }
   .drawer-content {
     width: calc(100vw - var(--awx-rail-w));
