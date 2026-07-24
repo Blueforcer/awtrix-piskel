@@ -641,10 +641,16 @@
     var frameHeight = this.piskelController.getCurrentFrame().getHeight();
     var frameWidth = this.piskelController.getCurrentFrame().getWidth();
 
-    return Math.min(
+    var zoom = Math.min(
       this.getAvailableWidth_() / frameWidth,
       this.getAvailableHeight_() / frameHeight
     );
+    // AWTRIX NG: snap the fit zoom to whole screen pixels. A fractional zoom
+    // (e.g. 36.5) puts sprite-pixel edges on half pixels; the stroke overlay
+    // and the committed frame render on separate canvases and rasterize those
+    // edges differently, leaving hairline seams while drawing that vanish on
+    // mouse-up. The leftover space is centered by the renderer's margins.
+    return zoom >= 1 ? Math.floor(zoom) : zoom;
   };
 
   /* AWTRIX NG layout: the canvas fills the .main-column stage cell, which the
