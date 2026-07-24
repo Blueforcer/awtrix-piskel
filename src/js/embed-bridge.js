@@ -107,10 +107,11 @@
   }
 
   // ---- live mirror to the physical matrix -----------------------------------
-  // While on: push the currently edited frame as raw pixels on every change
-  // (crisp, size-exact, no codec); when the preview is actually animating
-  // (FPS > 0 and more than one visible frame) push the whole sprite as a
-  // looping GIF instead. AWTRIX holds it on the panel and replaces it in place.
+  // While on: push the current frame as a compact base64 RGB bitmap on every
+  // change (crisp, size-exact, one JSON string); when the preview is actually
+  // animating (FPS > 0, more than one visible frame, not paused) push the whole
+  // sprite as a looping GIF instead. AWTRIX holds it on the panel and replaces
+  // it in place.
   var liveOn = false,
     liveTimer = null,
     liveEvents = null;
