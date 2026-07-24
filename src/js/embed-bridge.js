@@ -140,6 +140,24 @@
     return btoa(bin);
   }
 
+  function sendLiveBitmap() {
+    var pc = pskl.app.piskelController;
+    var canvas = pc.renderFrameAt(pc.getCurrentFrameIndex(), true);
+    sendToParent({
+      type: "live",
+      mode: "bitmap",
+      w: canvas.width,
+      h: canvas.height,
+      dataBase64: frameToBase64Rgb(canvas)
+    });
+  }
+
+  // One AWTRIX notification body caps at ~8 KB on the device. A base64 bitmap
+  // is well under that (~1 KB at 32x8, ~4 KB at 32x32); an animated GIF can
+  // exceed it with many frames or colors, so it is only used while playing and
+  // only when it fits — otherwise the current frame is mirrored as a bitmap.
+  var LIVE_BODY_MAX = 7000;
+
   // A still sprite goes as a compact base64 bitmap (the AWTRIX `db` command's
   // string form). A running animation goes as a looping GIF, which the device
   // animates on its own — a single still bitmap could not.
@@ -148,30 +166,28 @@
       return;
     }
     try {
-      var pc = pskl.app.piskelController;
       if (isAnimating()) {
+        var pc = pskl.app.piskelController;
         var Gif = pskl.controller.settings.exportimage.GifExportController;
         new Gif(pc).renderAsImageDataAnimatedGIF(
           1,
           pc.getFPS(),
           function (uri) {
-            sendToParent({
-              type: "live",
-              mode: "gif",
-              mime: "image/gif",
-              dataBase64: String(uri).split(",")[1] || ""
-            });
+            var b64 = String(uri).split(",")[1] || "";
+            if (b64.length > LIVE_BODY_MAX) {
+              sendLiveBitmap(); // animation too big for one notification
+            } else {
+              sendToParent({
+                type: "live",
+                mode: "gif",
+                mime: "image/gif",
+                dataBase64: b64
+              });
+            }
           }
         );
       } else {
-        var canvas = pc.renderFrameAt(pc.getCurrentFrameIndex(), true);
-        sendToParent({
-          type: "live",
-          mode: "bitmap",
-          w: canvas.width,
-          h: canvas.height,
-          dataBase64: frameToBase64Rgb(canvas)
-        });
+        sendLiveBitmap();
       }
     } catch (e) {
       /* editor not ready yet */
