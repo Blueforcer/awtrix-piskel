@@ -1,0 +1,160 @@
+/*
+ * AWTRIX NG theme skin for the embedded Piskel fork.
+ *
+ * Add this file LAST in `src/piskel-style-list.js` so it wins over Piskel's own
+ * (hard-coded) colours, and make sure your Vite config does NOT run the
+ * `var(--highlight-color)` -> `gold` substitution on it (that plugin only needs
+ * to touch the original variables.css). The AWTRIX web UI sets a `data-theme`
+ * attribute on <html> ("dark" | "light") via the query string and postMessage;
+ * these rules key off it.
+ *
+ * Piskel has no design-token layer, so this is a pragmatic override of the main
+ * surfaces rather than an exhaustive reskin — extend the selectors to taste. The
+ * palette below is AWTRIX NG's (GitHub-Primer-derived) token set, verbatim from
+ * webui/index.html so the embed matches the host exactly.
+ */
+
+:root[data-theme='dark'] {
+  --bg: #0d1117;
+  --card: #161b22;
+  --card2: #1c2129;
+  --border: #2d333b;
+  --fg: #e6edf3;
+  --dim: #8b949e;
+  --acc: #58a6ff;
+  --pri: #1f6feb;
+  --highlight-color: #58a6ff; /* Piskel accent */
+  --awx-letterbox: #1c2129;   /* canvas letterbox — read by FrameRenderer */
+  color-scheme: dark;
+}
+:root[data-theme='light'] {
+  --bg: #ffffff;
+  --card: #f6f8fa;
+  --card2: #eaeef2;
+  --border: #d0d7de;
+  --fg: #1f2328;
+  --dim: #59636e;
+  --acc: #0969da;
+  --pri: #0969da;
+  --highlight-color: #0969da;
+  --awx-letterbox: #eaeef2;   /* canvas letterbox — read by FrameRenderer */
+  color-scheme: light;
+}
+
+/* Page + main surfaces ------------------------------------------------------ */
+html[data-theme] body,
+html[data-theme] .main-panel,
+html[data-theme] #main-wrapper {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+/* Toolbars, side panels, settings drawer, frames strip ---------------------- */
+html[data-theme] #tool-section,
+html[data-theme] .left-sticky-section,
+html[data-theme] .right-sticky-section,
+html[data-theme] #tools-container,
+html[data-theme] .tool-icon,
+html[data-theme] #application-action-section,
+html[data-theme] #drawer-container,
+html[data-theme] .settings,
+html[data-theme] .left-column,
+html[data-theme] #preview-list-wrapper,
+html[data-theme] .preview-list {
+  /* background-color, NOT the background shorthand: .tool-icon draws its
+     glyph via a sprite background-image the shorthand would reset. */
+  background-color: var(--card);
+  color: var(--fg);
+  border-color: var(--border);
+}
+
+html[data-theme] .tool-icon:hover,
+html[data-theme] .preview-tile:hover {
+  background-color: var(--card2);
+}
+
+/* Piskel's tool/settings glyphs are white-only sprites — they need a dark
+   chip behind them even in the light theme. */
+html[data-theme='light'] .tool-icon,
+html[data-theme='light'] #application-action-section {
+  background-color: #30363d;
+}
+html[data-theme='light'] .tool-icon:hover {
+  background-color: #484f58;
+}
+
+/* Selected tool / active state --------------------------------------------- */
+html[data-theme] .tool-icon.selected,
+html[data-theme] .selected {
+  color: var(--acc);
+  box-shadow: inset 0 0 0 1px var(--acc);
+}
+
+/* Text, labels, secondary text --------------------------------------------- */
+html[data-theme] label,
+html[data-theme] .label,
+html[data-theme] .frame-count,
+html[data-theme] .fps-input-label {
+  color: var(--dim);
+}
+
+/* Inputs / selects / buttons ------------------------------------------------ */
+html[data-theme] input,
+html[data-theme] select,
+html[data-theme] textarea,
+html[data-theme] button {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
+html[data-theme] button.button-primary,
+html[data-theme] .button-primary {
+  background: var(--pri);
+  border-color: var(--pri);
+  color: #fff;
+}
+
+/* The drawing area sits on true black on the clock; keep the canvas backdrop
+   neutral so the pixels read the same as on the matrix. */
+html[data-theme] #drawing-canvas-container {
+  background: var(--card2);
+}
+
+/* AWTRIX panel in the settings drawer (AwtrixController) -------------------- */
+/* The Save icon opens the AWTRIX panel. Live keeps mirroring while the drawer
+   is closed — mark the Save icon green. */
+[data-setting="save"].awtrix-live-on {
+  box-shadow: inset 0 0 0 2px var(--ok, #3fb950);
+}
+
+.awtrix-settings .textfield,
+.awtrix-settings select {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 6px;
+  padding: 6px 9px;
+}
+.awtrix-settings .button { margin-bottom: 4px; }
+.awtrix-settings .save-status {
+  min-height: 1.2em;
+  color: var(--dim);
+  font-size: 12px;
+}
+
+/* Resize panel: two matrix-size buttons side by side. */
+.awtrix-resize .settings-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.awtrix-resize .resize-preset {
+  flex: 1 1 40%;
+  min-width: 88px;
+}
+.awtrix-resize .ghelp {
+  flex-basis: 100%;
+  color: var(--dim);
+  font-size: 12px;
+  margin-top: 2px;
+}

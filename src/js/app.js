@@ -20,7 +20,16 @@
       this.shortcutService = new pskl.service.keyboard.ShortcutService();
       this.shortcutService.init();
 
-      var size = pskl.UserSettings.get(pskl.UserSettings.DEFAULT_SIZE);
+      // AWTRIX NG: the editor targets LED matrices, so a new sprite starts at a
+      // matrix size (32×8 by default, or the first entry of ?sizes=WxH,…) rather
+      // than Piskel's stored default.
+      var size = { width: 32, height: 8 };
+      var sizesParam = /[?&]sizes=([^&]*)/.exec(window.location.search);
+      if (sizesParam) {
+        var first = decodeURIComponent(sizesParam[1]).split(",")[0];
+        var wh = /^(\d+)x(\d+)$/.exec(first.trim());
+        if (wh) { size = { width: parseInt(wh[1], 10), height: parseInt(wh[2], 10) }; }
+      }
       var fps = Constants.DEFAULT.FPS;
       var descriptor = new pskl.model.piskel.Descriptor("New Piskel", "");
       var piskel = new pskl.model.Piskel(

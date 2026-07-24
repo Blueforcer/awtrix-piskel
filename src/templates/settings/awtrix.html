@@ -1,0 +1,23 @@
+<script type="text/html" id="templates/settings/awtrix.html">
+  <div class="settings-section awtrix-settings">
+    <div class="settings-title">AWTRIX</div>
+    <div class="settings-item">
+      <label class="row" for="awtrix-name">Icon name</label>
+      <input id="awtrix-name" type="text" class="textfield" placeholder="icon name" spellcheck="false" autocomplete="off" />
+      <input type="button" class="button button-primary" id="awtrix-save" value="Save to AWTRIX" />
+      <div class="save-status" id="awtrix-status"></div>
+    </div>
+    <div class="settings-title">Open from AWTRIX</div>
+    <div class="settings-item">
+      <select id="awtrix-open-list">
+        <option value="">Loading…</option>
+      </select>
+    </div>
+    <div class="settings-title">Live preview</div>
+    <div class="settings-item">
+      <label class="row">
+        <input type="checkbox" id="awtrix-live" /> Mirror the drawing on the matrix
+      </label>
+    </div>
+  </div>
+</script>

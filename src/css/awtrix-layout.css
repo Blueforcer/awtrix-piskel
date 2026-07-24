@@ -1,0 +1,394 @@
+/**
+ * AWTRIX NG — layout for the icon-editor fork ("instrument panel").
+ *
+ * Replaces Piskel's grown desktop layout (left frames column, 100px tool
+ * strip, 210px preview column, 47px settings strip) with one symmetric shell
+ * that works from 320px phones to wide desktops:
+ *
+ *   ┌────┬──────────────────────────┬────┐
+ *   │tool│                          │menu│   two 56px rails,
+ *   │rail│      canvas stage        │rail│   canvas centered between them
+ *   │    │                          │    │
+ *   ├────┴──────────────────────────┴────┤
+ *   │ frames dock  ▣ ▣ ▣ ▣ +      fps ─○ │   one horizontal film strip
+ *   └────────────────────────────────────┘
+ *
+ * The animated-preview minimap, layers, transformations, palettes list and
+ * the zoom readout are not shown. Only the FPS / onion-skin row of the
+ * preview column survives, positioned into the frames dock below. Canvas
+ * sizing and the letterbox color are handled in the core (DrawingController /
+ * FrameRenderer); everything here is pure layout/skin.
+ *
+ * Loaded last in piskel-style-list.js (after awtrix-theme.css, which owns the
+ * color tokens).
+ */
+
+:root {
+  --awx-rail-w: 56px;
+  --awx-dock-h: 116px;
+  --awx-hairline: var(--border, #2d333b);
+}
+
+/* ------------------------------------------------------------------ */
+/* Shell                                                               */
+/* ------------------------------------------------------------------ */
+
+.main-wrapper {
+  top: 0;
+  bottom: 0;
+}
+
+/* Canvas stage cell: everything between the rails, above the dock. */
+#column-wrapper {
+  left: var(--awx-rail-w);
+  right: var(--awx-rail-w);
+  top: 0;
+  bottom: var(--awx-dock-h);
+  display: block;
+}
+.main-column {
+  width: 100%;
+  height: 100%;
+  /* Faint dot grid — a nod to the LED matrix the icons land on. */
+  background-image: radial-gradient(
+    circle,
+    var(--awx-hairline) 1px,
+    transparent 1px
+  );
+  background-size: 14px 14px;
+  background-position: 7px 7px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Left rail — tools                                                   */
+/* ------------------------------------------------------------------ */
+
+#tool-section {
+  left: 0;
+  top: 0;
+  bottom: var(--awx-dock-h);
+  width: var(--awx-rail-w);
+  max-width: none;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--card, #161b22);
+  border-right: 1px solid var(--awx-hairline);
+  scrollbar-width: none;
+}
+#tool-section::-webkit-scrollbar {
+  display: none;
+}
+/* Kill the table-based vertical centering — the rail is a top-down list. */
+#tool-section .sticky-section-wrap,
+#tool-section .vertical-centerer {
+  display: block;
+  height: auto;
+}
+#tool-section .vertical-centerer {
+  padding: 8px 0 12px;
+}
+.left-sticky-section .tool-icon {
+  float: none;
+  margin: 3px auto;
+  display: block;
+}
+.tools-wrapper,
+.options-wrapper,
+.palette-wrapper {
+  float: none;
+}
+
+/* Pen-size picker: 2×2 grid centered in the rail. */
+.pen-size-container {
+  display: grid;
+  grid-template-columns: repeat(2, 20px);
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 0 8px;
+}
+
+/* Primary/secondary color + swap: pinned to the bottom of the rail so the
+   colors stay reachable even while the tool list scrolls. */
+.palette-wrapper {
+  position: sticky;
+  bottom: 0;
+  margin: 12px 0 0;
+  padding: 8px 0 10px;
+  width: 100%;
+  background: var(--card, #161b22);
+  border-top: 1px solid var(--awx-hairline);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.tool-color-picker:nth-child(2) {
+  margin-left: -14px;
+  margin-top: -10px;
+  align-self: flex-end;
+  margin-right: 8px;
+}
+.swap-colors-button {
+  position: static;
+  margin-top: 8px;
+  opacity: 0.6;
+}
+
+/* ------------------------------------------------------------------ */
+/* Right rail — settings/menu icons + drawer                           */
+/* ------------------------------------------------------------------ */
+
+#application-action-section {
+  top: 0;
+  bottom: var(--awx-dock-h);
+  width: var(--awx-rail-w);
+  background: var(--card, #161b22);
+  border-left: 1px solid var(--awx-hairline);
+}
+#application-action-section .sticky-section-wrap {
+  display: block;
+  height: 100%;
+}
+#application-action-section .vertical-centerer {
+  display: block;
+  padding: 8px 0;
+}
+.right-sticky-section .tool-icon {
+  float: none;
+  margin: 3px auto;
+  display: block;
+}
+
+/* Drawer: a full-height sheet left of the rail. Upstream slides the whole
+   icon strip 280px left instead — on a phone that parks it on the tool rail,
+   so the strip stays put and only the sheet animates in. */
+.right-sticky-section.expanded {
+  right: 0;
+}
+.right-sticky-section .drawer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 100%;
+  left: auto;
+  display: block;
+  opacity: 0;
+  transform: translateX(14px);
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 160ms ease-out, transform 160ms ease-out,
+    visibility 0s 160ms;
+}
+.right-sticky-section.expanded .drawer {
+  opacity: 1;
+  transform: none;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity 160ms ease-out, transform 160ms ease-out;
+}
+.drawer-content {
+  width: min(360px, calc(100vw - 2 * var(--awx-rail-w)));
+  height: 100%;
+  max-height: none;
+  border-radius: 0;
+  background: var(--card, #161b22);
+  border-left: 1px solid var(--awx-hairline);
+  box-shadow: -12px 0 32px #0006;
+}
+.right-sticky-section .tool-icon.has-expanded-drawer {
+  background-color: var(--card2, #1c2129);
+  border-left: 3px solid var(--acc, #58a6ff);
+  padding-right: 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Bottom dock — frames strip + FPS                                    */
+/* ------------------------------------------------------------------ */
+
+.left-column {
+  position: fixed;
+  left: var(--awx-rail-w);
+  right: var(--awx-rail-w);
+  bottom: 0;
+  top: auto;
+  height: var(--awx-dock-h);
+  width: auto;
+  padding: 0;
+  background: var(--card, #161b22);
+  border-top: 1px solid var(--awx-hairline);
+  z-index: 900;
+}
+.preview-list-wrapper {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+}
+#preview-list-scroller {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+}
+.preview-list {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 100%;
+  padding: 0 8px;
+}
+.preview-tile {
+  flex-shrink: 0;
+  margin: 0 5px;
+}
+.add-frame-action {
+  flex-shrink: 0;
+  width: 96px;
+  height: 96px;
+  margin: 0 5px;
+  box-sizing: border-box;
+}
+.top-overflow,
+.bottom-overflow {
+  display: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Removed surfaces + re-docked FPS row                                */
+/* ------------------------------------------------------------------ */
+
+/* The right column holds the animated-preview minimap, layers,
+   transformations, palettes list and the zoom readout — none shown. Its FPS /
+   onion-skin row (.awtrix-fps-row) is lifted out of the flow and parked in the
+   frames dock. */
+.right-column {
+  position: fixed;
+  right: var(--awx-rail-w);
+  bottom: 0;
+  left: auto;
+  top: auto;
+  width: auto;
+  height: var(--awx-dock-h);
+  padding: 0;
+  z-index: 901;
+  pointer-events: none; /* only the FPS row is interactive */
+  display: block;
+}
+.right-column .minimap-container,
+.right-column .layers-list-container,
+.right-column .transformations-container,
+.right-column .palettes-list-container,
+.right-column .cursor-coordinates,
+.cheatsheet-link,
+.performance-link {
+  display: none;
+}
+.right-column .preview-container {
+  height: 100%;
+}
+.awtrix-fps-row {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  padding: 0 16px;
+  border-left: 1px solid var(--awx-hairline);
+  background: var(--card, #161b22);
+}
+.awtrix-fps-row .display-fps {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 12px;
+  color: var(--dim, #8b949e);
+  min-width: 6.5ch;
+  text-align: right;
+  white-space: nowrap;
+}
+.awtrix-fps-row .range-fps {
+  width: 120px;
+  accent-color: var(--acc, #58a6ff);
+}
+.awtrix-fps-row .preview-toggle-onion-skin {
+  transform: scale(0.9);
+  cursor: pointer;
+}
+
+/* ------------------------------------------------------------------ */
+/* Touch ergonomics (any coarse-pointer device)                        */
+/* ------------------------------------------------------------------ */
+
+@media (pointer: coarse) {
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+  #drawing-canvas-container {
+    touch-action: none;
+  }
+  .tool-color-picker input {
+    width: 34px;
+    height: 34px;
+  }
+  .swap-colors-button {
+    width: 30px;
+    height: 30px;
+    opacity: 0.7;
+  }
+  /* Frame-tile actions are hover-revealed upstream — invisible on touch.
+     Force visible and enlarge 30px → 40px. */
+  .preview-tile .tile-overlay {
+    opacity: 0.85;
+    width: 40px;
+    height: 40px;
+  }
+  .preview-tile .tile-overlay.tile-count {
+    line-height: 40px;
+  }
+  #preview-fps {
+    height: 28px;
+  }
+  #preview-fps::-webkit-slider-thumb {
+    width: 24px;
+    height: 24px;
+  }
+  #preview-fps::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Narrow screens                                                      */
+/* ------------------------------------------------------------------ */
+
+@media (max-width: 600px) {
+  :root {
+    --awx-dock-h: 150px;
+  }
+  /* Frames strip and FPS row stack: FPS becomes a slim second row that spans
+     the dock, the strip takes the rest. */
+  .left-column {
+    right: 0;
+  }
+  .preview-list-wrapper {
+    height: calc(var(--awx-dock-h) - 38px);
+  }
+  .right-column {
+    right: 0;
+    left: var(--awx-rail-w);
+    width: auto;
+    height: 38px;
+  }
+  .awtrix-fps-row {
+    justify-content: flex-end;
+    border-left: none;
+    border-top: 1px solid var(--awx-hairline);
+    padding: 0 12px;
+  }
+  .awtrix-fps-row .range-fps {
+    width: 90px;
+  }
+  .drawer-content {
+    width: calc(100vw - var(--awx-rail-w));
+  }
+}

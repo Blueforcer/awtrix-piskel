@@ -142,9 +142,13 @@
     window.addEventListener("mouseup", this.onMouseup_.bind(this));
     window.addEventListener("mousemove", this.onMousemove_.bind(this));
     window.addEventListener("keyup", this.onKeyup_.bind(this));
-    window.addEventListener("touchstart", this.onTouchstart_.bind(this));
-    window.addEventListener("touchmove", this.onTouchmove_.bind(this));
-    window.addEventListener("touchend", this.onTouchend_.bind(this));
+    // passive:false so the touch handlers below can preventDefault() and stop
+    // the page scrolling/zooming under a stroke (the drawing gesture owns the
+    // canvas; touches elsewhere are left alone for native scrolling).
+    window.addEventListener("touchstart", this.onTouchstart_.bind(this), { passive: false });
+    window.addEventListener("touchmove", this.onTouchmove_.bind(this), { passive: false });
+    window.addEventListener("touchend", this.onTouchend_.bind(this), { passive: false });
+    window.addEventListener("touchcancel", this.onTouchend_.bind(this), { passive: false });
 
     // Deactivate right click:
     document.body.addEventListener(
@@ -206,16 +210,80 @@
     $.publish(Events.ZOOM_CHANGED);
   };
 
+  /* Touch model:
+     - one finger on the canvas draws (Piskel's mouse path already reads
+       changedTouches, so it is forwarded as-is);
+     - two fingers on the canvas pinch-zoom and pan (reusing updateZoom_ and the
+       dragHandler);
+     - touches that did not start on the canvas are left untouched so lists and
+       the drawer keep native scrolling. */
+  ns.DrawingController.prototype.isCanvasTouch_ = function (event) {
+    var target = event.target;
+    return !!(target && target.closest && target.closest("#drawing-canvas-container"));
+  };
+
+  ns.DrawingController.prototype.readPinch_ = function (event) {
+    var a = event.touches[0], b = event.touches[1];
+    var dx = b.clientX - a.clientX, dy = b.clientY - a.clientY;
+    return {
+      dist: Math.sqrt(dx * dx + dy * dy),
+      cx: (a.clientX + b.clientX) / 2,
+      cy: (a.clientY + b.clientY) / 2
+    };
+  };
+
+  // End an in-progress one-finger stroke far outside the frame so the second
+  // finger coming down does not drop a stray pixel (tools ignore out-of-frame
+  // coordinates).
+  ns.DrawingController.prototype.endTouchStroke_ = function () {
+    try {
+      this.onMouseup_({
+        changedTouches: [{ clientX: -10000, clientY: -10000 }],
+        preventDefault: function () {}
+      });
+    } catch (e) { /* no stroke active */ }
+  };
+
   ns.DrawingController.prototype.onTouchstart_ = function (event) {
+    if (!this.isCanvasTouch_(event)) { return; }
+    if (event.touches.length >= 2) {
+      event.preventDefault();
+      this.endTouchStroke_();
+      this.gesture_ = this.readPinch_(event);
+      this.dragHandler.startDrag(this.gesture_.cx, this.gesture_.cy);
+      return;
+    }
+    this.gesture_ = null;
     this.onMousedown_(event);
   };
 
   ns.DrawingController.prototype.onTouchmove_ = function (event) {
+    if (this.gesture_) {
+      event.preventDefault();
+      if (event.touches.length < 2) { return; }
+      var info = this.readPinch_(event);
+      this.dragHandler.updateDrag(info.cx, info.cy);
+      var delta = info.dist - this.gesture_.dist;
+      if (Math.abs(delta) > 4) {
+        this.updateZoom_(delta / 40, this.getSpriteCoordinates(info.cx, info.cy));
+        this.gesture_.dist = info.dist;
+      }
+      return;
+    }
+    if (!this.isCanvasTouch_(event)) { return; }
+    event.preventDefault(); // stop the page scrolling under the stroke
     this.onMousemove_(event);
-    event.preventDefault();
   };
 
   ns.DrawingController.prototype.onTouchend_ = function (event) {
+    if (this.gesture_) {
+      if (event.touches.length < 2) {
+        try { this.dragHandler.stopDrag(); } catch (e) { /* was not dragging */ }
+        this.gesture_ = null;
+      }
+      return;
+    }
+    if (!this.isCanvasTouch_(event)) { return; }
     this.onMouseup_(event);
   };
 
@@ -548,32 +616,23 @@
     );
   };
 
-  ns.DrawingController.prototype.getAvailableHeight_ = function () {
-    return document.querySelector("#main-wrapper").getBoundingClientRect()
-      .height;
+  /* AWTRIX NG layout: the canvas fills the .main-column stage cell, which the
+     shell (awtrix-layout.css) sizes between the two rails and above the frames
+     dock. Measuring that box directly is both simpler and correct — Piskel's
+     original "page width minus every side panel" formula does not fit a shell
+     where the frames strip is a full-width dock and the preview column is
+     lifted out of the flow. */
+  ns.DrawingController.prototype.getStageRect_ = function () {
+    var el = document.querySelector(".main-column");
+    return el ? el.getBoundingClientRect() : { width: 0, height: 0 };
   };
 
-  ns.DrawingController.prototype.getSelectorWidth_ = function (selector) {
-    return document.querySelector(selector).getBoundingClientRect().width;
+  ns.DrawingController.prototype.getAvailableHeight_ = function () {
+    return Math.max(0, this.getStageRect_().height - 10);
   };
 
   ns.DrawingController.prototype.getAvailableWidth_ = function () {
-    var leftSectionWidth = this.getSelectorWidth_(".left-column");
-    var rightSectionWidth = this.getSelectorWidth_(".right-column");
-    var toolsContainerWidth = this.getSelectorWidth_("#tool-section");
-    var settingsContainerWidth = this.getSelectorWidth_(
-      "#application-action-section"
-    );
-
-    var usedWidth =
-      leftSectionWidth +
-      rightSectionWidth +
-      toolsContainerWidth +
-      settingsContainerWidth;
-    var availableWidth = this.getSelectorWidth_("#main-wrapper") - usedWidth;
-
-    var comfortMargin = 10;
-    return availableWidth - comfortMargin;
+    return Math.max(0, this.getStageRect_().width - 10);
   };
 
   ns.DrawingController.prototype.getContainerHeight_ = function () {

@@ -44,6 +44,8 @@
       this.getGridWidth(),
       this.getGridSpacing(),
       this.getGridColor(),
+      // AWTRIX NG: theme switches repaint the canvas letterbox
+      pskl.rendering.frame.getLetterboxColor(),
       pskl.UserSettings.get("SEAMLESS_MODE"),
       pskl.UserSettings.get("SEAMLESS_OPACITY"),
       offset.x,

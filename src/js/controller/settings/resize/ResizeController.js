@@ -1,16 +1,14 @@
+/**
+ * AWTRIX NG resize panel — two fixed matrix-size buttons (8×8, 32×8) instead of
+ * Piskel's free width/height inputs. Existing pixels are kept, anchored
+ * top-left, so an 8×8 icon promoted to 32×8 lands in the corner and can be
+ * extended.
+ */
 (function () {
   var ns = $.namespace("pskl.controller.settings.resize");
 
   ns.ResizeController = function (piskelController) {
     this.piskelController = piskelController;
-
-    this.container = document.querySelector(".resize-canvas");
-
-    var anchorWidgetContainer = this.container.querySelector(
-      ".resize-anchor-container"
-    );
-    this.anchorWidget = new pskl.widgets.AnchorWidget(anchorWidgetContainer);
-    this.defaultSizeController = new ns.DefaultSizeController(piskelController);
   };
 
   pskl.utils.inherit(
@@ -19,103 +17,32 @@
   );
 
   ns.ResizeController.prototype.init = function () {
-    this.widthInput = this.container.querySelector('[name="resize-width"]');
-    this.heightInput = this.container.querySelector('[name="resize-height"]');
-    this.resizeForm = this.container.querySelector("form");
-    this.resizeContentCheckbox = this.container.querySelector(
-      ".resize-content-checkbox"
+    var buttons = document.querySelectorAll(".resize-preset");
+    Array.prototype.forEach.call(
+      buttons,
+      function (button) {
+        this.addEventListener(button, "click", this.onPresetClick_);
+      },
+      this
     );
-    this.maintainRatioCheckbox = this.container.querySelector(
-      ".resize-ratio-checkbox"
-    );
-
-    this.sizeInputWidget = new pskl.widgets.SizeInput({
-      widthInput: this.widthInput,
-      heightInput: this.heightInput,
-      initWidth: this.piskelController.getWidth(),
-      initHeight: this.piskelController.getHeight()
-    });
-
-    var settings = pskl.UserSettings.get("RESIZE_SETTINGS");
-    var origin = pskl.widgets.AnchorWidget.ORIGIN[settings.origin] || "TOPLEFT";
-    this.anchorWidget.setOrigin(origin);
-
-    if (settings.resizeContent) {
-      this.resizeContentCheckbox.checked = true;
-      this.anchorWidget.disable();
-    }
-
-    if (settings.maintainRatio) {
-      this.maintainRatioCheckbox.checked = true;
-    } else {
-      // the SizeInput widget is enabled by default
-      this.sizeInputWidget.disableSync();
-    }
-
-    this.addEventListener(this.resizeForm, "submit", this.onResizeFormSubmit_);
-    this.addEventListener(
-      this.resizeContentCheckbox,
-      "change",
-      this.onResizeContentChange_
-    );
-    this.addEventListener(
-      this.maintainRatioCheckbox,
-      "change",
-      this.onMaintainRatioChange_
-    );
-
-    this.defaultSizeController.init();
   };
 
-  ns.ResizeController.prototype.destroy = function () {
-    this.updateUserPreferences_();
+  ns.ResizeController.prototype.onPresetClick_ = function (evt) {
+    var button = evt.currentTarget || evt.target;
+    var width = parseInt(button.getAttribute("data-width"), 10);
+    var height = parseInt(button.getAttribute("data-height"), 10);
 
-    this.anchorWidget.destroy();
-    this.sizeInputWidget.destroy();
-    this.superclass.destroy.call(this);
-  };
+    var piskel = pskl.utils.ResizeUtils.resizePiskel(
+      this.piskelController.getPiskel(),
+      {
+        width: width,
+        height: height,
+        origin: "TOPLEFT",
+        resizeContent: false
+      }
+    );
 
-  ns.ResizeController.prototype.onResizeFormSubmit_ = function (evt) {
-    evt.preventDefault();
-
-    var currentPiskel = this.piskelController.getPiskel();
-    var piskel = pskl.utils.ResizeUtils.resizePiskel(currentPiskel, {
-      width: parseInt(this.widthInput.value, 10),
-      height: parseInt(this.heightInput.value, 10),
-      origin: this.anchorWidget.getOrigin(),
-      resizeContent: this.resizeContentCheckbox.checked
-    });
-
-    pskl.app.piskelController.setPiskel(piskel, {
-      preserveState: true
-    });
-
+    pskl.app.piskelController.setPiskel(piskel, { preserveState: true });
     $.publish(Events.CLOSE_SETTINGS_DRAWER);
-  };
-
-  ns.ResizeController.prototype.onResizeContentChange_ = function (evt) {
-    var target = evt.target;
-    if (target.checked) {
-      this.anchorWidget.disable();
-    } else {
-      this.anchorWidget.enable();
-    }
-  };
-
-  ns.ResizeController.prototype.onMaintainRatioChange_ = function (evt) {
-    var target = evt.target;
-    if (target.checked) {
-      this.sizeInputWidget.enableSync();
-    } else {
-      this.sizeInputWidget.disableSync();
-    }
-  };
-
-  ns.ResizeController.prototype.updateUserPreferences_ = function () {
-    pskl.UserSettings.set("RESIZE_SETTINGS", {
-      origin: this.anchorWidget.getOrigin(),
-      resizeContent: !!this.resizeContentCheckbox.checked,
-      maintainRatio: !!this.maintainRatioCheckbox.checked
-    });
   };
 })();

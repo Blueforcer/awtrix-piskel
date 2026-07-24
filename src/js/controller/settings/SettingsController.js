@@ -14,17 +14,17 @@
       template: "templates/settings/export.html",
       controller: ns.exportimage.ExportController
     },
-    import: {
-      template: "templates/settings/import.html",
-      controller: ns.ImportController
-    },
     localstorage: {
       template: "templates/settings/localstorage.html",
       controller: ns.LocalStorageController
     },
+    // AWTRIX NG: the Save icon opens the AWTRIX save/open/live panel instead of
+    // Piskel's SAVE OFFLINE AS FILE / IN BROWSER drawer. Import (.piskel / local
+    // saves / images / backups) is removed entirely — icons come in through
+    // "Open from AWTRIX".
     save: {
-      template: "templates/settings/save.html",
-      controller: ns.SaveController
+      template: "templates/settings/awtrix.html",
+      controller: ns.AwtrixController
     }
   };
 

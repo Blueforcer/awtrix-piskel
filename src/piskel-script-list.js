@@ -136,9 +136,7 @@ exports.scripts = [
   "js/controller/settings/exportimage/MiscExportController.js",
   "js/controller/settings/exportimage/ExportController.js",
   "js/controller/settings/resize/ResizeController.js",
-  "js/controller/settings/resize/DefaultSizeController.js",
-  "js/controller/settings/SaveController.js",
-  "js/controller/settings/ImportController.js",
+  "js/controller/settings/AwtrixController.js",
 
   // Settings controller
   "js/controller/settings/SettingsController.js",
@@ -264,5 +262,8 @@ exports.scripts = [
   "js/app.js",
 
   // Bonus features !!
-  "js/snippets.js"
+  "js/snippets.js",
+
+  // AWTRIX NG embed layer
+  "js/embed-bridge.js"
 ];

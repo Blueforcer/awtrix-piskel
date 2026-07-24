@@ -1,6 +1,35 @@
 (function () {
   var ns = $.namespace("pskl.rendering.frame");
 
+  /* AWTRIX NG: the letterbox painted around a zoomed-out sprite is a canvas
+     fill, so CSS cannot theme it. Read it from the --awx-letterbox custom
+     property (set per theme in awtrix-theme.css) and refresh on theme change,
+     falling back to Piskel's stock grey. Cached so the hot render path does not
+     call getComputedStyle every frame. */
+  var letterboxColor = null;
+  function readLetterbox() {
+    var v = "";
+    try {
+      v = getComputedStyle(document.documentElement)
+        .getPropertyValue("--awx-letterbox").trim();
+    } catch (e) { /* no DOM (headless) */ }
+    return v || Constants.ZOOMED_OUT_BACKGROUND_COLOR;
+  }
+  if (typeof document !== "undefined" && document.documentElement) {
+    letterboxColor = readLetterbox();
+    if (typeof MutationObserver !== "undefined") {
+      new MutationObserver(function () { letterboxColor = readLetterbox(); })
+        .observe(document.documentElement, {
+          attributes: true, attributeFilter: ["data-theme"]
+        });
+    }
+  }
+  // Exposed so CachedFrameRenderer can include the color in its cache key — a
+  // theme switch then invalidates the cache and repaints the letterbox.
+  ns.getLetterboxColor = function () {
+    return letterboxColor || Constants.ZOOMED_OUT_BACKGROUND_COLOR;
+  };
+
   /**
    * FrameRenderer will display a given frame inside a canvas element.
    * @param {HtmlElement} container HtmlElement to use as parentNode of the Frame
@@ -327,8 +356,8 @@
     // happening after that will clear "out of bounds" and seems to be doing nothing
     // on some chromebooks (cf https://github.com/piskelapp/piskel/issues/651)
     if (isZoomedOut) {
-      // Draw background
-      displayContext.fillStyle = Constants.ZOOMED_OUT_BACKGROUND_COLOR;
+      // Draw background (AWTRIX NG: theme-aware, see getLetterboxColor above)
+      displayContext.fillStyle = ns.getLetterboxColor();
       // The -1 on the width and height here is a workaround for a Chrome-only bug
       // that was potentially fixed, but is very hardware dependant. Seems to be
       // triggered when doing clear rect or fill rect using the full width & height
