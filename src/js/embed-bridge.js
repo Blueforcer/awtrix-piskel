@@ -125,41 +125,51 @@
       return false;
     }
   }
+  // Build a GIF of the current sprite and send it to AWTRIX. A raw pixel array
+  // (256 ints for 32x8, 1024 for 32x32) exceeds the device's JSON item limit
+  // and comes back as 413 payloadTooLarge; a base64 GIF is a single JSON
+  // string, so it always fits. One frame when stopped/static, every visible
+  // frame (looping) while the animation is playing.
   function pushLiveNow() {
     if (!liveOn) {
       return;
     }
     try {
-      if (isAnimating()) {
-        var Gif = pskl.controller.settings.exportimage.GifExportController;
-        new Gif(pskl.app.piskelController).renderAsImageDataAnimatedGIF(
-          1,
-          pskl.app.piskelController.getFPS(),
-          function (uri) {
-            sendToParent({
-              type: "live",
-              mode: "gif",
-              mime: "image/gif",
-              dataBase64: String(uri).split(",")[1] || ""
-            });
-          }
-        );
-      } else {
-        var pc = pskl.app.piskelController;
-        var c = pc.renderFrameAt(pc.getCurrentFrameIndex(), true); // returns an HTMLCanvasElement
-        var d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data,
-          pix = [];
-        for (var i = 0; i < d.length; i += 4) {
-          pix.push((d[i] << 16) | (d[i + 1] << 8) | d[i + 2]);
-        }
-        sendToParent({
-          type: "live",
-          mode: "pixels",
-          w: c.width,
-          h: c.height,
-          pixels: pix
+      var pc = pskl.app.piskelController;
+      var w = pc.getWidth(),
+        h = pc.getHeight();
+      var fps = pc.getFPS() || 1;
+      var indexes = isAnimating()
+        ? pc.getVisibleFrameIndexes()
+        : [pc.getCurrentFrameIndex()];
+      // Use gif.js with its default worker config (as GifExportController does);
+      // workers:0 hangs because gif.js still expects a worker to post back.
+      var gif = new window.GIF({
+        workers: 2,
+        quality: 1,
+        width: w,
+        height: h,
+        repeat: 0
+      });
+      indexes.forEach(function (idx) {
+        gif.addFrame(pc.renderFrameAt(idx, true), {
+          delay: 1000 / fps,
+          copy: true
         });
-      }
+      });
+      gif.on("finished", function (blob) {
+        var reader = new FileReader();
+        reader.onload = function () {
+          sendToParent({
+            type: "live",
+            mode: "gif",
+            mime: "image/gif",
+            dataBase64: String(reader.result).split(",")[1] || ""
+          });
+        };
+        reader.readAsDataURL(blob);
+      });
+      gif.render();
     } catch (e) {
       /* editor not ready yet */
     }
