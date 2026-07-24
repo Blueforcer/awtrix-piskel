@@ -1,11 +1,8 @@
 (function () {
   var ns = $.namespace("pskl.controller.settings.exportimage");
 
+  // AWTRIX NG: icons are GIFs; the PNG export tab is removed.
   var tabs = {
-    png: {
-      template: "templates/settings/export/png.html",
-      controller: ns.PngExportController
-    },
     gif: {
       template: "templates/settings/export/gif.html",
       controller: ns.GifExportController
@@ -54,7 +51,11 @@
 
     this.onSizeInputChange_();
 
-    // Initialize tabs and panel
+    // Initialize tabs and panel. A stored selection of the removed png tab
+    // (from an earlier session) falls back to gif.
+    if (pskl.UserSettings.get(pskl.UserSettings.EXPORT_TAB) === "png") {
+      pskl.UserSettings.set(pskl.UserSettings.EXPORT_TAB, "gif");
+    }
     var container = document.querySelector(".settings-section-export");
     this.tabsWidget.init(container);
   };

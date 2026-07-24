@@ -131,7 +131,6 @@ exports.scripts = [
   "js/controller/settings/preferences/TilePreferencesController.js",
   "js/controller/settings/PreferencesController.js",
   "js/controller/settings/exportimage/GifExportController.js",
-  "js/controller/settings/exportimage/PngExportController.js",
   "js/controller/settings/exportimage/ZipExportController.js",
   "js/controller/settings/exportimage/MiscExportController.js",
   "js/controller/settings/exportimage/ExportController.js",

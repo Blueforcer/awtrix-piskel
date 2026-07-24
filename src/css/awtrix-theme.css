@@ -121,13 +121,8 @@ html[data-theme] #drawing-canvas-container {
   background: var(--card2);
 }
 
-/* AWTRIX panel in the settings drawer (AwtrixController) -------------------- */
-/* The Save icon opens the AWTRIX panel. Live keeps mirroring while the drawer
-   is closed — mark the Save icon green. */
-[data-setting="save"].awtrix-live-on {
-  box-shadow: inset 0 0 0 2px var(--ok, #3fb950);
-}
-
+/* AWTRIX panel in the settings drawer (AwtrixController). Live has its own
+   button in the transport dock; this panel is name + save + open. ---------- */
 .awtrix-settings .textfield,
 .awtrix-settings select {
   width: 100%;

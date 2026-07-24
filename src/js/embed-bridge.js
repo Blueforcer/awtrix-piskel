@@ -204,10 +204,11 @@
   }
   function setLive(on) {
     liveOn = on;
-    // Live keeps mirroring while the drawer is closed — mark the Save icon.
-    var icon = document.querySelector("[data-setting=save]");
-    if (icon) {
-      icon.classList.toggle("awtrix-live-on", on);
+    // Reflect the state on the transport's Live button (the primary control).
+    var btn = document.querySelector(".awtrix-live-toggle");
+    if (btn) {
+      btn.classList.toggle("on", on);
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
     }
     emit("live", on);
     liveEvents = liveEvents || [
@@ -308,6 +309,15 @@
     }
 
     pskl.app.awtrixBridge = api;
+
+    // Live toggle lives in the transport dock, next to play/stop.
+    var liveBtn = document.querySelector(".awtrix-live-toggle");
+    if (liveBtn) {
+      liveBtn.addEventListener("click", function () {
+        setLive(!liveOn);
+      });
+    }
+
     sendToParent({ type: "ready" });
   });
 })();

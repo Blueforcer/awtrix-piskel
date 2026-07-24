@@ -370,6 +370,54 @@
   filter: brightness(1.08);
 }
 
+/* Live toggle: a little LED matrix that lights up green while mirroring. */
+.awtrix-live-toggle {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: var(--card2, #1c2129);
+  box-shadow: inset 0 0 0 1px var(--awx-hairline);
+  cursor: pointer;
+  padding: 0;
+  position: relative;
+  transition: box-shadow 120ms ease;
+}
+.awtrix-live-toggle::before {
+  content: "";
+  position: absolute;
+  top: 15px;
+  left: 10px;
+  right: 10px;
+  bottom: 15px;
+  background-image: radial-gradient(
+    circle,
+    currentColor 0.9px,
+    transparent 1.1px
+  );
+  background-size: 4px 5px;
+  background-position: 0 0;
+  color: var(--dim, #8b949e);
+  opacity: 0.8;
+}
+.awtrix-live-toggle:hover::before {
+  color: var(--acc, #58a6ff);
+}
+.awtrix-live-toggle.on {
+  background: color-mix(in srgb, var(--ok, #3fb950) 18%, var(--card2, #1c2129));
+  box-shadow:
+    inset 0 0 0 1px var(--ok, #3fb950),
+    0 0 0 4px color-mix(in srgb, var(--ok, #3fb950) 22%, transparent);
+}
+.awtrix-live-toggle.on::before {
+  color: var(--ok, #3fb950);
+  opacity: 1;
+  filter: drop-shadow(
+    0 0 2px color-mix(in srgb, var(--ok, #3fb950) 70%, transparent)
+  );
+}
+
 /* FPS: slider stacked over a monospace readout, tight as one unit. */
 .awtrix-fps {
   display: flex;

@@ -29,21 +29,17 @@
     this.nameInput = document.querySelector("#awtrix-name");
     this.saveButton = document.querySelector("#awtrix-save");
     this.openList = document.querySelector("#awtrix-open-list");
-    this.liveCheckbox = document.querySelector("#awtrix-live");
     this.status = document.querySelector("#awtrix-status");
 
     this.nameInput.value = savedName;
-    this.liveCheckbox.checked = !!(bridge && bridge.isLiveOn());
 
     this.addEventListener(this.nameInput, "input", this.onNameInput_);
     this.addEventListener(this.saveButton, "click", this.onSaveClick_);
     this.addEventListener(this.openList, "change", this.onOpenChange_);
-    this.addEventListener(this.liveCheckbox, "change", this.onLiveChange_);
 
     if (bridge) {
       this.unsubscribes.push(bridge.on("list", this.onListResult_.bind(this)));
       this.unsubscribes.push(bridge.on("status", this.setStatus_.bind(this)));
-      this.unsubscribes.push(bridge.on("live", this.onLiveState_.bind(this)));
       bridge.requestList(); // refresh the icon list on every open
     }
   };
@@ -72,18 +68,6 @@
       savedName = value.replace(/\.[^.]+$/, "");
       this.nameInput.value = savedName;
       pskl.app.awtrixBridge.load(value);
-    }
-  };
-
-  ns.AwtrixController.prototype.onLiveChange_ = function () {
-    if (pskl.app.awtrixBridge) {
-      pskl.app.awtrixBridge.setLive(this.liveCheckbox.checked);
-    }
-  };
-
-  ns.AwtrixController.prototype.onLiveState_ = function (on) {
-    if (this.liveCheckbox) {
-      this.liveCheckbox.checked = !!on;
     }
   };
 
