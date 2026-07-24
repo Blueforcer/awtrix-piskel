@@ -101,18 +101,10 @@
   };
 
   ns.PreviewController.prototype.updateZoom_ = function () {
-    var previewSize = pskl.UserSettings.get(pskl.UserSettings.PREVIEW_SIZE);
-
-    var zoom;
-    if (previewSize === "original") {
-      zoom = 1;
-    } else if (previewSize === "best") {
-      zoom = Math.floor(this.calculateZoom_());
-    } else if (previewSize === "full") {
-      zoom = this.calculateZoom_();
-    }
-
-    this.renderer.setZoom(zoom);
+    // AWTRIX NG: the monitor always shows the sprite as large as fits its dock
+    // slot, floored to whole pixels for a crisp preview (the 1x/best/full size
+    // options are not exposed in this fork).
+    this.renderer.setZoom(Math.max(1, Math.floor(this.calculateZoom_())));
     this.setRenderFlag_(true);
   };
 
@@ -166,15 +158,28 @@
     }
   };
 
+  // AWTRIX NG: the monitor's usable box is its dock slot (the container's
+  // parent), measured live so the sprite fills whatever width the layout gives
+  // it. Falls back to the old fixed square if the slot has no size yet.
+  ns.PreviewController.prototype.getSlotSize_ = function () {
+    var slot = this.container.parentNode;
+    var w = (slot && slot.clientWidth) || PREVIEW_SIZE;
+    var h = (slot && slot.clientHeight) || PREVIEW_SIZE;
+    return { width: w, height: h };
+  };
+
   /**
-   * Calculate the preview zoom depending on the framesheet size
+   * Calculate the preview zoom so the sprite is as large as fits the slot,
+   * independently on each axis (a 32x8 sprite fills the width, an 8x8 fills
+   * the height).
    */
   ns.PreviewController.prototype.calculateZoom_ = function () {
     var frame = this.piskelController.getCurrentFrame();
-    var hZoom = PREVIEW_SIZE / frame.getHeight();
-    var wZoom = PREVIEW_SIZE / frame.getWidth();
-
-    return Math.min(hZoom, wZoom);
+    var slot = this.getSlotSize_();
+    return Math.min(
+      slot.width / frame.getWidth(),
+      slot.height / frame.getHeight()
+    );
   };
 
   ns.PreviewController.prototype.onFrameSizeChange_ = function () {
@@ -186,30 +191,27 @@
     var isSeamless = pskl.UserSettings.get(pskl.UserSettings.SEAMLESS_MODE);
     this.renderer.setRepeated(isSeamless);
 
+    var slot = this.getSlotSize_();
     var width;
     var height;
 
     if (isSeamless) {
-      height = PREVIEW_SIZE;
-      width = PREVIEW_SIZE;
+      height = slot.height;
+      width = slot.width;
     } else {
-      var zoom = this.getZoom();
+      // Use the zoom actually rendered (floored to whole pixels) so the canvas
+      // box matches the pixels exactly.
+      var zoom = this.renderer.getZoom();
       var frame = this.piskelController.getCurrentFrame();
       height = frame.getHeight() * zoom;
       width = frame.getWidth() * zoom;
     }
 
+    // The dock slot centers the canvas with flexbox; no margins needed.
     var containerEl = this.container;
     containerEl.style.height = height + "px";
     containerEl.style.width = width + "px";
-
-    var horizontalMargin = (PREVIEW_SIZE - height) / 2;
-    containerEl.style.marginTop = horizontalMargin + "px";
-    containerEl.style.marginBottom = horizontalMargin + "px";
-
-    var verticalMargin = (PREVIEW_SIZE - width) / 2;
-    containerEl.style.marginLeft = verticalMargin + "px";
-    containerEl.style.marginRight = verticalMargin + "px";
+    containerEl.style.margin = "0";
   };
 
   ns.PreviewController.prototype.setRenderFlag_ = function (bool) {

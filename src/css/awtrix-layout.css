@@ -299,10 +299,15 @@
   box-shadow: inset 1px 0 0 var(--bg, #0d1117);
 }
 
-/* Monitor: the running animation in a recessed display frame. */
+/* Monitor: the running animation in a recessed display frame. Sized to nearly
+   the full dock height and wide enough that a 32×8 sprite reads large; the
+   PreviewController measures this box (padding-free) and fits the sprite to it.
+   box-sizing:content-box keeps clientWidth/Height equal to the usable area. */
 .right-column .minimap-container {
-  width: 108px;
-  height: 84px;
+  box-sizing: content-box;
+  width: 160px;
+  height: calc(var(--awx-dock-h) - 24px);
+  padding: 0;
   margin: 0 !important;
   overflow: hidden;
   display: flex;
