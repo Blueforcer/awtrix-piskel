@@ -16,8 +16,10 @@
     this.lastRenderTime = 0;
     this.renderFlag = true;
     // AWTRIX NG: play/stop state of the animation preview. While paused the
-    // preview shows the currently edited frame.
-    this.paused = false;
+    // preview shows the currently edited frame. Starts paused — the editor
+    // opens quiet, the ▶ button starts the animation (and, with Live on, the
+    // looping GIF on the matrix).
+    this.paused = true;
 
     this.renderer = new pskl.rendering.frame.BackgroundImageFrameRenderer(
       this.container
