@@ -60,6 +60,9 @@ var Events = {
 
   FRAME_SIZE_CHANGED: "FRAME_SIZE_CHANGED",
   FPS_CHANGED: "FPS_CHANGED",
+  // AWTRIX NG: play/stop state of the animation preview changed (payload:
+  // isPaused). The embed bridge re-pushes the live matrix preview on this.
+  PLAYBACK_TOGGLED: "PLAYBACK_TOGGLED",
 
   SELECTION_CREATED: "SELECTION_CREATED",
   SELECTION_MOVE_REQUEST: "SELECTION_MOVE_REQUEST",

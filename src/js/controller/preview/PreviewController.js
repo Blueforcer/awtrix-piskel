@@ -1,8 +1,10 @@
 (function () {
   var ns = $.namespace("pskl.controller.preview");
 
-  // Preview is a square of PREVIEW_SIZE x PREVIEW_SIZE
-  var PREVIEW_SIZE = 200;
+  // Preview is a square of PREVIEW_SIZE x PREVIEW_SIZE.
+  // AWTRIX NG: sized for the slot in the frames dock (was 200 in the removed
+  // right column).
+  var PREVIEW_SIZE = 96;
   var RENDER_MINIMUM_DELAY = 300;
 
   ns.PreviewController = function (piskelController, container) {
@@ -13,6 +15,9 @@
     this.currentIndex = 0;
     this.lastRenderTime = 0;
     this.renderFlag = true;
+    // AWTRIX NG: play/stop state of the animation preview. While paused the
+    // preview shows the currently edited frame.
+    this.paused = false;
 
     this.renderer = new pskl.rendering.frame.BackgroundImageFrameRenderer(
       this.container
@@ -27,9 +32,8 @@
   };
 
   ns.PreviewController.prototype.init = function () {
-    var width =
-      Constants.ANIMATED_PREVIEW_WIDTH + Constants.RIGHT_COLUMN_PADDING_LEFT;
-    document.querySelector(".right-column").style.width = width + "px";
+    // AWTRIX NG: the preview lives in the frames dock; the shell CSS owns its
+    // geometry (upstream forced a 210px right-column width here).
 
     $.subscribe(Events.FRAME_SIZE_CHANGED, this.onFrameSizeChange_.bind(this));
     $.subscribe(
@@ -42,8 +46,39 @@
     this.popupPreviewController.init();
     this.previewActionsController.init();
 
+    // AWTRIX NG: play/stop toggle in the dock's FPS row.
+    this.playToggle = document.querySelector(".awtrix-play-toggle");
+    if (this.playToggle) {
+      this.playToggle.addEventListener(
+        "click",
+        function () {
+          this.setPaused(!this.paused);
+        }.bind(this)
+      );
+      this.playToggle.classList.toggle("playing", !this.paused);
+    }
+
     this.updateZoom_();
     this.updateContainerDimensions_();
+  };
+
+  /**
+   * AWTRIX NG: stop/resume the animation playback. Paused shows the currently
+   * edited frame; the state is broadcast so the live matrix preview can switch
+   * between the looping GIF and a still frame.
+   */
+  ns.PreviewController.prototype.setPaused = function (paused) {
+    this.paused = !!paused;
+    this.elapsedTime = 0;
+    this.setRenderFlag_(true);
+    if (this.playToggle) {
+      this.playToggle.classList.toggle("playing", !this.paused);
+    }
+    $.publish(Events.PLAYBACK_TOGGLED, [this.paused]);
+  };
+
+  ns.PreviewController.prototype.isPaused = function () {
+    return !!this.paused;
   };
 
   ns.PreviewController.prototype.openPopupPreview = function () {
@@ -113,7 +148,7 @@
 
   ns.PreviewController.prototype.getNextIndex_ = function (delta) {
     var fps = this.piskelController.getFPS();
-    if (fps === 0) {
+    if (fps === 0 || this.paused) {
       return this.piskelController.getCurrentFrameIndex();
     } else {
       var index = Math.floor(this.elapsedTime / (1000 / fps));

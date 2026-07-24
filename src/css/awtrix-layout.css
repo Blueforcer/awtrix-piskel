@@ -261,10 +261,10 @@
 /* Removed surfaces + re-docked FPS row                                */
 /* ------------------------------------------------------------------ */
 
-/* The right column holds the animated-preview minimap, layers,
-   transformations, palettes list and the zoom readout — none shown. Its FPS /
-   onion-skin row (.awtrix-fps-row) is lifted out of the flow and parked in the
-   frames dock. */
+/* The right column holds the animated preview, layers, transformations,
+   palettes list and the zoom readout. Layers/transform/palettes/zoom are not
+   shown; the animated preview (playback window) and its FPS/onion/play row
+   are parked in the frames dock. */
 .right-column {
   position: fixed;
   right: var(--awx-rail-w);
@@ -275,20 +275,40 @@
   height: var(--awx-dock-h);
   padding: 0;
   z-index: 901;
-  pointer-events: none; /* only the FPS row is interactive */
+  pointer-events: none; /* only preview + FPS row are interactive */
   display: block;
 }
-.right-column .minimap-container,
 .right-column .layers-list-container,
 .right-column .transformations-container,
 .right-column .palettes-list-container,
 .right-column .cursor-coordinates,
+.right-column .preview-contextual-actions,
 .cheatsheet-link,
 .performance-link {
   display: none;
 }
 .right-column .preview-container {
   height: 100%;
+  display: flex;
+  align-items: stretch;
+}
+/* Playback window: a PREVIEW_SIZE (96px) slot showing the running animation.
+   PreviewController centers the canvas inside it via inline margins; override
+   Piskel's fixed 200px wrapper box so it fits the dock height. */
+.right-column .minimap-container {
+  pointer-events: auto;
+  width: 96px;
+  height: 100% !important;
+  margin: 0 !important;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-left: 1px solid var(--awx-hairline);
+  padding-left: 10px;
+}
+.right-column .minimap-container #animated-preview-canvas-container {
+  margin: 0 !important;
 }
 .awtrix-fps-row {
   pointer-events: auto;
@@ -297,8 +317,29 @@
   gap: 10px;
   height: 100%;
   padding: 0 16px;
-  border-left: 1px solid var(--awx-hairline);
   background: var(--card, #161b22);
+}
+/* Play/stop toggle: ▶ while stopped, ⏹ while playing. */
+.awtrix-play-toggle {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--awx-hairline);
+  border-radius: 6px;
+  background: var(--card2, #1c2129);
+  color: var(--fg, #e6edf3);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+.awtrix-play-toggle::before {
+  content: "▶";
+}
+.awtrix-play-toggle.playing::before {
+  content: "⏹";
+}
+.awtrix-play-toggle:hover {
+  border-color: var(--acc, #58a6ff);
 }
 .awtrix-fps-row .display-fps {
   font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
@@ -383,11 +424,19 @@
     width: auto;
     height: 38px;
   }
+  /* The 38px second row has no room for the 96px playback window — the play
+     toggle stays, and with Live on the matrix itself shows the animation. */
+  .right-column .minimap-container {
+    display: none;
+  }
   .awtrix-fps-row {
     justify-content: flex-end;
-    border-left: none;
     border-top: 1px solid var(--awx-hairline);
     padding: 0 12px;
+  }
+  .awtrix-play-toggle {
+    width: 30px;
+    height: 30px;
   }
   .awtrix-fps-row .range-fps {
     width: 90px;

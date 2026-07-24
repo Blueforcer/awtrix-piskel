@@ -118,7 +118,8 @@
     try {
       return (
         pskl.app.piskelController.getFPS() > 0 &&
-        pskl.app.piskelController.getVisibleFrameIndexes().length > 1
+        pskl.app.piskelController.getVisibleFrameIndexes().length > 1 &&
+        !pskl.app.previewController.isPaused()
       );
     } catch (e) {
       return false;
@@ -184,7 +185,8 @@
       Events.TOOL_RELEASED,
       Events.PISKEL_RESET,
       Events.FRAME_SIZE_CHANGED,
-      Events.FPS_CHANGED
+      Events.FPS_CHANGED,
+      Events.PLAYBACK_TOGGLED // play → looping GIF, stop → still frame
     ];
     if (on) {
       liveEvents.forEach(function (ev) {
