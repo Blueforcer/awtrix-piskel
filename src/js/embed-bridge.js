@@ -125,51 +125,53 @@
       return false;
     }
   }
-  // Build a GIF of the current sprite and send it to AWTRIX. A raw pixel array
-  // (256 ints for 32x8, 1024 for 32x32) exceeds the device's JSON item limit
-  // and comes back as 413 payloadTooLarge; a base64 GIF is a single JSON
-  // string, so it always fits. One frame when stopped/static, every visible
-  // frame (looping) while the animation is playing.
+  // base64 of the canvas' RGB888 bytes, row-major. A raw pixel array (256 ints
+  // for 32x8, 1024 for 32x32) overflows the device's JSON document pool and
+  // comes back 413 payloadTooLarge; this is one JSON string of ~w*h*4/3 bytes.
+  function frameToBase64Rgb(canvas) {
+    var d = canvas
+      .getContext("2d")
+      .getImageData(0, 0, canvas.width, canvas.height).data;
+    var bin = "";
+    for (var i = 0; i < d.length; i += 4) {
+      bin += String.fromCharCode(d[i], d[i + 1], d[i + 2]);
+    }
+    return btoa(bin);
+  }
+
+  // A still sprite goes as a compact base64 bitmap (the AWTRIX `db` command's
+  // string form). A running animation goes as a looping GIF, which the device
+  // animates on its own — a single still bitmap could not.
   function pushLiveNow() {
     if (!liveOn) {
       return;
     }
     try {
       var pc = pskl.app.piskelController;
-      var w = pc.getWidth(),
-        h = pc.getHeight();
-      var fps = pc.getFPS() || 1;
-      var indexes = isAnimating()
-        ? pc.getVisibleFrameIndexes()
-        : [pc.getCurrentFrameIndex()];
-      // Use gif.js with its default worker config (as GifExportController does);
-      // workers:0 hangs because gif.js still expects a worker to post back.
-      var gif = new window.GIF({
-        workers: 2,
-        quality: 1,
-        width: w,
-        height: h,
-        repeat: 0
-      });
-      indexes.forEach(function (idx) {
-        gif.addFrame(pc.renderFrameAt(idx, true), {
-          delay: 1000 / fps,
-          copy: true
+      if (isAnimating()) {
+        var Gif = pskl.controller.settings.exportimage.GifExportController;
+        new Gif(pc).renderAsImageDataAnimatedGIF(
+          1,
+          pc.getFPS(),
+          function (uri) {
+            sendToParent({
+              type: "live",
+              mode: "gif",
+              mime: "image/gif",
+              dataBase64: String(uri).split(",")[1] || ""
+            });
+          }
+        );
+      } else {
+        var canvas = pc.renderFrameAt(pc.getCurrentFrameIndex(), true);
+        sendToParent({
+          type: "live",
+          mode: "bitmap",
+          w: canvas.width,
+          h: canvas.height,
+          dataBase64: frameToBase64Rgb(canvas)
         });
-      });
-      gif.on("finished", function (blob) {
-        var reader = new FileReader();
-        reader.onload = function () {
-          sendToParent({
-            type: "live",
-            mode: "gif",
-            mime: "image/gif",
-            dataBase64: String(reader.result).split(",")[1] || ""
-          });
-        };
-        reader.readAsDataURL(blob);
-      });
-      gif.render();
+      }
     } catch (e) {
       /* editor not ready yet */
     }
