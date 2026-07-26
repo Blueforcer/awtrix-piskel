@@ -11801,7 +11801,10 @@ var Constants = {
   // Keep in sync with padding-left: 10px in layout.css
   RIGHT_COLUMN_PADDING_LEFT: 10,
 
-  DEFAULT_PEN_COLOR: "#000000",
+  // AWTRIX NG: icons are drawn for an LED matrix that is black where nothing
+  // lights up, so black-on-black is the one useless starting color. White is
+  // also what the pen resets to with D.
+  DEFAULT_PEN_COLOR: "#FFFFFF",
   TRANSPARENT_COLOR: "rgba(0, 0, 0, 0)",
   SEAMLESS_MODE_OVERLAY_COLOR: "rgba(255, 255, 255, 0)",
 
@@ -12553,7 +12556,8 @@ if (!Uint32Array.prototype.fill) {
       if (data[i + 3] < TRANSPARENT_ALPHA) {
         indexes[p] = 0; // reserved transparent slot
       } else {
-        indexes[p] = palette.lookup[(data[i] << 16) | (data[i + 1] << 8) | data[i + 2]];
+        indexes[p] =
+          palette.lookup[(data[i] << 16) | (data[i + 1] << 8) | data[i + 2]];
       }
     }
     return indexes;
@@ -12637,7 +12641,13 @@ if (!Uint32Array.prototype.fill) {
         out.push(0x00);
 
         out.push(minCodeSize);
-        pushSubBlocks(out, lzwEncode(indexFrame(frameData[f], palette, hasTransparency), minCodeSize));
+        pushSubBlocks(
+          out,
+          lzwEncode(
+            indexFrame(frameData[f], palette, hasTransparency),
+            minCodeSize
+          )
+        );
       }
 
       out.push(0x3b); // trailer
@@ -25048,8 +25058,9 @@ return Q;
     this.onionSkinShortcut = pskl.service.keyboard.Shortcuts.MISC.ONION_SKIN;
     this.toggleGridShortcut = pskl.service.keyboard.Shortcuts.MISC.TOGGLE_GRID;
 
-    this.fpsRangeInput = document.querySelector("#preview-fps");
-    this.fpsCounterDisplay = document.querySelector("#display-fps");
+    // AWTRIX NG: the frame rate is a number field in the right rail (upstream:
+    // a slider plus a separate readout - the field is both).
+    this.fpsInput = document.querySelector("#preview-fps");
     this.openPopupPreview = document.querySelector(
       ".open-popup-preview-button"
     );
@@ -25078,14 +25089,8 @@ return Q;
   };
 
   ns.PreviewActionsController.prototype.init = function () {
-    this.fpsRangeInput.addEventListener(
-      "change",
-      this.onFpsRangeInputUpdate_.bind(this)
-    );
-    this.fpsRangeInput.addEventListener(
-      "input",
-      this.onFpsRangeInputUpdate_.bind(this)
-    );
+    this.fpsInput.addEventListener("change", this.onFpsInputUpdate_.bind(this));
+    this.fpsInput.addEventListener("input", this.onFpsInputUpdate_.bind(this));
 
     var addEvent = pskl.utils.Event.addEventListener;
     addEvent(this.toggleOnionSkinButton, "click", this.toggleOnionSkin_, this);
@@ -25301,7 +25306,7 @@ return Q;
 
   ns.PreviewActionsController.prototype.updateMaxFPS_ = function () {
     var maxFps = pskl.UserSettings.get(pskl.UserSettings.MAX_FPS);
-    this.fpsRangeInput.setAttribute("max", maxFps);
+    this.fpsInput.setAttribute("max", maxFps);
     this.piskelController.setFPS(
       Math.min(maxFps, this.piskelController.getFPS())
     );
@@ -25309,28 +25314,42 @@ return Q;
 
   /**
    * Event handler triggered on 'input' or 'change' events.
+   *
+   * AWTRIX NG: a number field can hold states a slider cannot - empty while
+   * being retyped, or a value past the bounds. Half-typed input is ignored
+   * rather than committed as 0, and the field is only rewritten once the edit
+   * is done ('change'), so typing is never fought mid-keystroke.
    */
-  ns.PreviewActionsController.prototype.onFpsRangeInputUpdate_ = function (
-    evt
-  ) {
-    var fps = parseInt(this.fpsRangeInput.value, 10);
+  ns.PreviewActionsController.prototype.onFpsInputUpdate_ = function (evt) {
+    var committing = evt.type === "change";
+    var typed = parseInt(this.fpsInput.value, 10);
+    if (isNaN(typed)) {
+      if (committing) {
+        this.fpsInput.value = this.piskelController.getFPS();
+      }
+      return;
+    }
+
+    var max = parseInt(this.fpsInput.getAttribute("max"), 10);
+    var fps = Math.max(0, isNaN(max) ? typed : Math.min(max, typed));
     this.piskelController.setFPS(fps);
-    // blur only on 'change' events, as blurring on 'input' breaks on Firefox
-    if (evt.type === "change") {
-      this.fpsRangeInput.blur();
+    if (committing) {
+      if (fps !== typed) {
+        this.fpsInput.value = fps;
+      }
+      // blur only on 'change' events, as blurring on 'input' breaks on Firefox
+      this.fpsInput.blur();
     }
   };
 
   ns.PreviewActionsController.prototype.updateFPS_ = function () {
+    // While the field has focus its text is the user's, not ours.
+    if (document.activeElement === this.fpsInput) {
+      return;
+    }
     var fps = this.piskelController.getFPS();
-    if (fps !== this.fpsRangeInput.value) {
-      // reset
-      this.fpsRangeInput.value = 0;
-      // set proper value
-      this.fpsRangeInput.value = fps;
-      // AWTRIX NG: the "fps" unit label is rendered separately in the transport
-      // readout, so the counter shows just the number.
-      this.fpsCounterDisplay.textContent = fps;
+    if (parseInt(this.fpsInput.value, 10) !== fps) {
+      this.fpsInput.value = fps;
     }
   };
 
@@ -27152,7 +27171,9 @@ return Q;
     var frames = [];
     for (var i = 0; i < this.piskelController.getFrameCount(); i++) {
       var render = this.piskelController.renderFrameAt(i, true);
-      frames.push(zoom === 1 ? render : pskl.utils.ImageResizer.scale(render, zoom));
+      frames.push(
+        zoom === 1 ? render : pskl.utils.ImageResizer.scale(render, zoom)
+      );
     }
     return pskl.utils.GifEncoder.encodeBase64({
       width: width * zoom,
@@ -38150,4 +38171,4 @@ ns.ToolsHelper = {
   });
 })();
 
-//# sourceMappingURL=piskel-packaged-2026-07-24-08-48.js.map
+//# sourceMappingURL=piskel-packaged-2026-07-26-09-04.js.map

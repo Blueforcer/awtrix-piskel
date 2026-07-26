@@ -185,41 +185,8 @@
       <div class="canvas-background"></div>
     </div>
   </div>
-  <!-- AWTRIX transport: play/stop + fps, one control group; the onion-skin
-       toggle is a view option and lives in the right rail, not here. -->
-  <div class="awtrix-transport">
-    <button
-      type="button"
-      class="awtrix-play-toggle"
-      title="Play / stop the animation"
-      data-test-id="awtrix-play-toggle"
-    ></button>
-    <button
-      type="button"
-      class="awtrix-live-toggle"
-      title="Mirror the drawing live on the matrix"
-      aria-pressed="false"
-      data-test-id="awtrix-live-toggle"
-    ></button>
-    <div class="awtrix-fps">
-      <input
-        id="preview-fps"
-        class="range-fps"
-        type="range"
-        min="0"
-        max="24"
-        data-test-id="fps-slider"
-      >
-      <span class="awtrix-fps-readout">
-        <span
-          id="display-fps"
-          class="display-fps"
-          data-test-id="fps-display"
-        ></span>
-        <span class="awtrix-fps-unit">fps</span>
-      </span>
-    </div>
-  </div>
+  <!-- AWTRIX NG: the transport (play/stop, live, fps) sits in the right rail,
+       not here - this container is the monitor and nothing else. -->
 </div>
 
         <div class="toolbox-container layers-list-container" data-test-id="layer-list">
@@ -365,6 +332,46 @@
     <div id="application-action-section" data-pskl-controller="settings" class="sticky-section right-sticky-section">
       <div class="sticky-section-wrap">
         <div class="vertical-centerer">
+  <!-- AWTRIX NG: playback transport - play/stop, live mirroring and the frame
+       rate - stacked at the top of the rail. Bound by PreviewController and
+       embed-bridge via their classes, so the markup can live anywhere. -->
+  <div class="awtrix-transport">
+    <button
+      type="button"
+      class="awtrix-play-toggle"
+      title="<span class='highlight'>PLAY</span></br>Play / stop the animation"
+      rel="tooltip"
+      data-placement="left"
+      data-test-id="awtrix-play-toggle"
+    ></button>
+    <button
+      type="button"
+      class="awtrix-live-toggle"
+      title="<span class='highlight'>LIVE</span></br>Mirror the drawing on the matrix"
+      rel="tooltip"
+      data-placement="left"
+      aria-pressed="false"
+      data-test-id="awtrix-live-toggle"
+    ></button>
+    <label
+      class="awtrix-fps"
+      title="<span class='highlight'>FRAME RATE</span></br>0 holds the current frame"
+      rel="tooltip"
+      data-placement="left"
+    >
+      <input
+        id="preview-fps"
+        class="input-fps"
+        type="number"
+        min="0"
+        max="24"
+        step="1"
+        data-test-id="fps-input"
+      >
+      <span class="awtrix-fps-unit">fps</span>
+    </label>
+  </div>
+
   <!-- AWTRIX NG: onion-skin is a view toggle, moved out of the animation dock
        into the rail. Bound by PreviewActionsController via its class. -->
   <div
@@ -1330,10 +1337,10 @@
     (function () {
   /**
    * This file is inlined into index.html via @@include('piskel-boot.js').
-   * During build, the html-include vite plugin replaces -2026-07-24-08-48 with
+   * During build, the html-include vite plugin replaces -2026-07-26-09-04 with
    * the build timestamp (e.g. '-2026-04-05-12-19').
    */
-  var version = "-2026-07-24-08-48";
+  var version = "-2026-07-26-09-04";
 
   if (!window.piskelReadyCallbacks) {
     window.piskelReadyCallbacks = [];
