@@ -1,4 +1,44 @@
 <div class="vertical-centerer">
+  <!-- AWTRIX NG: playback transport - play/stop, live mirroring and the frame
+       rate - stacked at the top of the rail. Bound by PreviewController and
+       embed-bridge via their classes, so the markup can live anywhere. -->
+  <div class="awtrix-transport">
+    <button
+      type="button"
+      class="awtrix-play-toggle"
+      title="<span class='highlight'>PLAY</span></br>Play / stop the animation"
+      rel="tooltip"
+      data-placement="left"
+      data-test-id="awtrix-play-toggle"
+    ></button>
+    <button
+      type="button"
+      class="awtrix-live-toggle"
+      title="<span class='highlight'>LIVE</span></br>Mirror the drawing on the matrix"
+      rel="tooltip"
+      data-placement="left"
+      aria-pressed="false"
+      data-test-id="awtrix-live-toggle"
+    ></button>
+    <label
+      class="awtrix-fps"
+      title="<span class='highlight'>FRAME RATE</span></br>0 holds the current frame"
+      rel="tooltip"
+      data-placement="left"
+    >
+      <input
+        id="preview-fps"
+        class="input-fps"
+        type="number"
+        min="0"
+        max="24"
+        step="1"
+        data-test-id="fps-input"
+      >
+      <span class="awtrix-fps-unit">fps</span>
+    </label>
+  </div>
+
   <!-- AWTRIX NG: onion-skin is a view toggle, moved out of the animation dock
        into the rail. Bound by PreviewActionsController via its class. -->
   <div

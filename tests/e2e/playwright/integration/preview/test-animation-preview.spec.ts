@@ -308,8 +308,14 @@ test.describe("Preview actions", () => {
 // ─── Animation preview (FPS) ─────────────────────────────────────
 
 const getFPS = async (page: Page): Promise<number> => {
-  const text = await testId(page, "fps-display").innerText();
-  return parseInt(text, 10);
+  const value = await testId(page, "fps-input").inputValue();
+  return parseInt(value, 10);
+};
+
+const setFPS = async (page: Page, fps: string): Promise<void> => {
+  const input = testId(page, "fps-input");
+  await input.fill(fps);
+  await input.dispatchEvent("change");
 };
 
 test.describe("Animation preview", () => {
@@ -320,13 +326,10 @@ test.describe("Animation preview", () => {
     expect(fps).toBe(12); // default FPS
   });
 
-  test("should change FPS via slider", async ({ page }) => {
+  test("should change FPS via the input field", async ({ page }) => {
     await openEditor(page);
 
-    const slider = testId(page, "fps-slider");
-    // Set FPS to 5 by filling the range input
-    await slider.fill("5");
-    await slider.dispatchEvent("change");
+    await setFPS(page, "5");
 
     await expect.poll(() => getFPS(page), { timeout: 5000 }).toBe(5);
   });
@@ -334,23 +337,38 @@ test.describe("Animation preview", () => {
   test("should pause animation when FPS is set to 0", async ({ page }) => {
     await openEditor(page);
 
-    const slider = testId(page, "fps-slider");
-    await slider.fill("0");
-    await slider.dispatchEvent("change");
+    await setFPS(page, "0");
 
     await expect.poll(() => getFPS(page), { timeout: 5000 }).toBe(0);
-    // FPS display should show "0 FPS"
-    await expect(testId(page, "fps-display")).toContainText("0");
   });
 
   test("should set FPS to max value", async ({ page }) => {
     await openEditor(page);
 
-    const slider = testId(page, "fps-slider");
-    await slider.fill("24");
-    await slider.dispatchEvent("change");
+    await setFPS(page, "24");
 
     await expect.poll(() => getFPS(page), { timeout: 5000 }).toBe(24);
+  });
+
+  test("should clamp a typed value above the maximum", async ({ page }) => {
+    await openEditor(page);
+
+    await setFPS(page, "99");
+
+    await expect.poll(() => getFPS(page), { timeout: 5000 }).toBe(24);
+  });
+
+  test("should keep the current FPS when the field is emptied", async ({
+    page
+  }) => {
+    await openEditor(page);
+
+    await setFPS(page, "7");
+    await expect.poll(() => getFPS(page), { timeout: 5000 }).toBe(7);
+
+    await setFPS(page, "");
+
+    await expect.poll(() => getFPS(page), { timeout: 5000 }).toBe(7);
   });
 
   test("FPS value should be saved in exported .piskel file", async ({
@@ -359,9 +377,7 @@ test.describe("Animation preview", () => {
     await openEditor(page);
 
     // Set a non-default FPS
-    const slider = testId(page, "fps-slider");
-    await slider.fill("7");
-    await slider.dispatchEvent("change");
+    await setFPS(page, "7");
     await expect.poll(() => getFPS(page), { timeout: 5000 }).toBe(7);
 
     // Save as .piskel file
@@ -371,7 +387,9 @@ test.describe("Animation preview", () => {
     const download = await downloadPromise;
 
     const downloadPath = await download.path();
-    if (!downloadPath) throw new Error("Download path is null");
+    if (!downloadPath) {
+      throw new Error("Download path is null");
+    }
 
     // Read and parse the .piskel file (it's JSON)
     const fs = await import("fs/promises");

@@ -50,39 +50,6 @@
       <div class="canvas-background"></div>
     </div>
   </div>
-  <!-- AWTRIX transport: play/stop + fps, one control group; the onion-skin
-       toggle is a view option and lives in the right rail, not here. -->
-  <div class="awtrix-transport">
-    <button
-      type="button"
-      class="awtrix-play-toggle"
-      title="Play / stop the animation"
-      data-test-id="awtrix-play-toggle"
-    ></button>
-    <button
-      type="button"
-      class="awtrix-live-toggle"
-      title="Mirror the drawing live on the matrix"
-      aria-pressed="false"
-      data-test-id="awtrix-live-toggle"
-    ></button>
-    <div class="awtrix-fps">
-      <input
-        id="preview-fps"
-        class="range-fps"
-        type="range"
-        min="0"
-        max="24"
-        data-test-id="fps-slider"
-      >
-      <span class="awtrix-fps-readout">
-        <span
-          id="display-fps"
-          class="display-fps"
-          data-test-id="fps-display"
-        ></span>
-        <span class="awtrix-fps-unit">fps</span>
-      </span>
-    </div>
-  </div>
+  <!-- AWTRIX NG: the transport (play/stop, live, fps) sits in the right rail,
+       not here - this container is the monitor and nothing else. -->
 </div>
