@@ -65,11 +65,11 @@ test.describe('Pen size UI', () => {
     await drawAtPixel(page, 1, 1);
 
     // With pen size 2, clicking at (1,1) fills pixels (0,0), (1,0), (0,1), (1,1)
-    const black = colorToInt('#000000');
-    expect(await getPixelColor(page, 0, 0)).toBe(black);
-    expect(await getPixelColor(page, 1, 0)).toBe(black);
-    expect(await getPixelColor(page, 0, 1)).toBe(black);
-    expect(await getPixelColor(page, 1, 1)).toBe(black);
+    const drawn = colorToInt('#FFFFFF'); // default primary color
+    expect(await getPixelColor(page, 0, 0)).toBe(drawn);
+    expect(await getPixelColor(page, 1, 0)).toBe(drawn);
+    expect(await getPixelColor(page, 0, 1)).toBe(drawn);
+    expect(await getPixelColor(page, 1, 1)).toBe(drawn);
 
     // Pixels outside the 2x2 area should remain transparent
     expect(await getPixelColor(page, 2, 0)).toBe(TRANSPARENT);

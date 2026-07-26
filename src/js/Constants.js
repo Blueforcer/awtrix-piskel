@@ -23,7 +23,10 @@ var Constants = {
   // Keep in sync with padding-left: 10px in layout.css
   RIGHT_COLUMN_PADDING_LEFT: 10,
 
-  DEFAULT_PEN_COLOR: "#000000",
+  // AWTRIX NG: icons are drawn for an LED matrix that is black where nothing
+  // lights up, so black-on-black is the one useless starting color. White is
+  // also what the pen resets to with D.
+  DEFAULT_PEN_COLOR: "#FFFFFF",
   TRANSPARENT_COLOR: "rgba(0, 0, 0, 0)",
   SEAMLESS_MODE_OVERLAY_COLOR: "rgba(255, 255, 255, 0)",
 

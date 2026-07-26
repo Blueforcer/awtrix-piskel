@@ -167,9 +167,9 @@ test.describe('Move tool', () => {
     await drawAtPixel(page, 2, 2);
 
     // Verify all 3 frames have the dot at (2,2)
-    expect(await getPixelColor(page, 2, 2, 0, 0)).toBe(colorToInt('#000000'));
-    expect(await getPixelColor(page, 2, 2, 0, 1)).toBe(colorToInt('#000000'));
-    expect(await getPixelColor(page, 2, 2, 0, 2)).toBe(colorToInt('#000000'));
+    expect(await getPixelColor(page, 2, 2, 0, 0)).toBe(colorToInt('#FFFFFF'));
+    expect(await getPixelColor(page, 2, 2, 0, 1)).toBe(colorToInt('#FFFFFF'));
+    expect(await getPixelColor(page, 2, 2, 0, 2)).toBe(colorToInt('#FFFFFF'));
 
     // Go back to frame 0
     await page.keyboard.press('ArrowUp');
@@ -230,8 +230,8 @@ test.describe('Move tool', () => {
     await drawAtPixel(page, 2, 4);
 
     // Verify dots on each layer
-    expect(await getPixelColor(page, 2, 2, 0, 0)).toBe(colorToInt('#000000')); // layer 0
-    expect(await getPixelColor(page, 2, 4, 1, 0)).toBe(colorToInt('#000000')); // layer 1
+    expect(await getPixelColor(page, 2, 2, 0, 0)).toBe(colorToInt('#FFFFFF')); // layer 0
+    expect(await getPixelColor(page, 2, 4, 1, 0)).toBe(colorToInt('#FFFFFF')); // layer 1
 
     // Ctrl+move from (2,3) to (6,3) — should move ALL layers
     await clickTool(page, 'tool-move');

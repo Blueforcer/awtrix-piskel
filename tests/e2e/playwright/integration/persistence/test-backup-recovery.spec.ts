@@ -29,8 +29,8 @@ test.describe('Backup and recovery', () => {
     await clickTool(page, 'tool-pen');
     await drawAtPixel(page, 0, 0);
 
-    // Verify the pixel was drawn (default primary color is black)
-    expect(await getPixelColor(page, 0, 0)).toBe(colorToInt('#000000'));
+    // Verify the pixel was drawn (default primary color is white)
+    expect(await getPixelColor(page, 0, 0)).toBe(colorToInt('#FFFFFF'));
 
     // Wait for backup to be saved (BackupService saves every 10s by default,
     // but we can force it by triggering the save via the model)
@@ -88,8 +88,8 @@ test.describe('Backup and recovery', () => {
     // Dialog should close after loading
     await expect(page.locator('#dialog-container-wrapper:not(.show)')).toBeAttached();
 
-    // The backed-up pixel should be restored (black at 0,0)
-    expect(await getPixelColor(page, 0, 0)).toBe(colorToInt('#000000'));
+    // The backed-up pixel should be restored (white at 0,0)
+    expect(await getPixelColor(page, 0, 0)).toBe(colorToInt('#FFFFFF'));
 
     // Reopen backups to delete the session
     // Wait for settings drawer to fully close after backup load

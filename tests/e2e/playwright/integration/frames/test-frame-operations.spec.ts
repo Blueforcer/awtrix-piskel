@@ -191,9 +191,9 @@ test.describe('Frame operations', () => {
     await testId(page, 'duplicate-frame-button').nth(0).click();
 
     expect(await getCurrentPiskelFrameCount(page)).toBe(2);
-    // Duplicated frame should have the same black pixel (default primary color)
+    // Duplicated frame should have the same white pixel (default primary color)
     const pixel = await getPixelColor(page, 1, 1, 0, 1);
-    expect(pixel).toBe(colorToInt('#000000'));
+    expect(pixel).toBe(colorToInt('#FFFFFF'));
   });
 
   test('should duplicate a middle frame and insert after it', async ({ page }) => {

@@ -16,8 +16,8 @@ test.describe('Color picker', () => {
     const primary = await getPrimaryColor(page);
     const secondary = await getSecondaryColor(page);
 
-    // Default primary is black (#000000), secondary is transparent
-    expect(primary).toBe('#000000');
+    // AWTRIX NG: default primary is white (#FFFFFF), secondary is transparent
+    expect(primary.toUpperCase()).toBe('#FFFFFF');
     expect(secondary).toBe('rgba(0, 0, 0, 0)');
   });
 
@@ -63,7 +63,7 @@ test.describe('Color picker', () => {
     // Press D to reset
     await page.keyboard.press('d');
 
-    expect(await getPrimaryColor(page)).toBe('#000000');
+    expect((await getPrimaryColor(page)).toUpperCase()).toBe('#FFFFFF');
     expect(await getSecondaryColor(page)).toBe('rgba(0, 0, 0, 0)');
   });
 
