@@ -1,23 +1,28 @@
-name: E2E Tests
+name: CI
 
 on:
-  workflow_dispatch:
-    inputs:
-      os:
-        description: 'OS to run on (leave empty for both)'
-        required: false
-        type: choice
-        options:
-          - all
-          - ubuntu-latest
-          - macos-latest
-        default: 'all'
   push:
     branches:
       - master
   pull_request:
     branches:
       - master
+  workflow_dispatch:
+    inputs:
+      e2e:
+        description: "Also run the inherited upstream E2E suite"
+        required: false
+        type: boolean
+        default: false
+      os:
+        description: "OS to run the E2E suite on"
+        required: false
+        type: choice
+        options:
+          - all
+          - ubuntu-latest
+          - macos-latest
+        default: "all"
 
 jobs:
   lint:
@@ -26,22 +31,39 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
+          cache: npm
       - run: npm ci
       - run: npx biome ci src/
 
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npm run unit-tests
+
+  # Upstream's Playwright suite drives the layers, palettes, transform, export
+  # and preferences UI this fork removes, so most of it cannot pass here. It is
+  # kept intact for anyone rebasing on upstream, and runs only when asked for.
   e2e:
-    needs: lint
+    if: github.event_name == 'workflow_dispatch' && inputs.e2e
+    needs: [lint, unit-tests]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: ${{ github.event.inputs.os == 'all' && fromJson('["ubuntu-latest","macos-latest"]') || github.event.inputs.os && fromJson(format('["{0}"]', github.event.inputs.os)) || fromJson('["ubuntu-latest","macos-latest"]') }}
+        os: ${{ inputs.os == 'all' && fromJson('["ubuntu-latest","macos-latest"]') || fromJson(format('["{0}"]', inputs.os)) }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
+          cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps
-      - run: npm run test-ci
+      - run: npm run e2e
