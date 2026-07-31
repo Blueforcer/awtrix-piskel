@@ -24,6 +24,12 @@ on:
           - macos-latest
         default: "all"
 
+# npm install rather than npm ci: yauzl-promise, three levels under the
+# nw-builder devDependency, reaches @node-rs/crc32, and npm cannot record that
+# package's wasm32-wasi subtree from a machine that resolves a native binary
+# instead. A lock file written on Windows is therefore always short of two
+# @emnapi packages that Linux wants, and npm ci refuses to install. Regenerating
+# the lock on Linux would let npm ci come back.
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -33,7 +39,7 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-      - run: npm ci
+      - run: npm install --no-audit --no-fund
       - run: npx biome ci src/
 
   unit-tests:
@@ -44,7 +50,7 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-      - run: npm ci
+      - run: npm install --no-audit --no-fund
       - run: npm run unit-tests
 
   # Upstream's Playwright suite drives the layers, palettes, transform, export
@@ -64,6 +70,6 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-      - run: npm ci
+      - run: npm install --no-audit --no-fund
       - run: npx playwright install --with-deps
       - run: npm run e2e
