@@ -255,7 +255,7 @@
         changedTouches: [{ clientX: -10000, clientY: -10000 }],
         preventDefault: function () {}
       });
-    } catch (e) {
+    } catch (_e) {
       /* no stroke active */
     }
   };
@@ -305,7 +305,7 @@
       if (event.touches.length < 2) {
         try {
           this.dragHandler.stopDrag();
-        } catch (e) {
+        } catch (_e) {
           /* was not dragging */
         }
         this.gesture_ = null;

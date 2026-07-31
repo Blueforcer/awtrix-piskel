@@ -13,7 +13,7 @@
       v = getComputedStyle(document.documentElement)
         .getPropertyValue("--awx-letterbox")
         .trim();
-    } catch (e) {
+    } catch (_e) {
       /* no DOM (headless) */
     }
     return v || Constants.ZOOMED_OUT_BACKGROUND_COLOR;

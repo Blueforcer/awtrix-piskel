@@ -30,7 +30,7 @@
     msg.ns = AWTRIX_NS;
     try {
       window.parent.postMessage(msg, parentOrigin);
-    } catch (e) {
+    } catch (_e) {
       /* not embedded */
     }
   }
@@ -122,7 +122,7 @@
         pskl.app.piskelController.getVisibleFrameIndexes().length > 1 &&
         !pskl.app.previewController.isPaused()
       );
-    } catch (e) {
+    } catch (_e) {
       return false;
     }
   }
@@ -191,7 +191,7 @@
       } else {
         sendLiveBitmap();
       }
-    } catch (e) {
+    } catch (_e) {
       /* editor not ready yet */
     }
   }
