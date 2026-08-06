@@ -21919,7 +21919,7 @@ return Q;
       v = getComputedStyle(document.documentElement)
         .getPropertyValue("--awx-letterbox")
         .trim();
-    } catch (e) {
+    } catch (_e) {
       /* no DOM (headless) */
     }
     return v || Constants.ZOOMED_OUT_BACKGROUND_COLOR;
@@ -23643,7 +23643,7 @@ return Q;
         changedTouches: [{ clientX: -10000, clientY: -10000 }],
         preventDefault: function () {}
       });
-    } catch (e) {
+    } catch (_e) {
       /* no stroke active */
     }
   };
@@ -23693,7 +23693,7 @@ return Q;
       if (event.touches.length < 2) {
         try {
           this.dragHandler.stopDrag();
-        } catch (e) {
+        } catch (_e) {
           /* was not dragging */
         }
         this.gesture_ = null;
@@ -27669,9 +27669,6 @@ return Q;
 (function () {
   var ns = $.namespace("pskl.controller.settings");
 
-  // Icon name typed by the user survives drawer close/reopen.
-  var savedName = "";
-
   ns.AwtrixController = function (piskelController) {
     this.piskelController = piskelController;
     this.unsubscribes = [];
@@ -27690,7 +27687,7 @@ return Q;
     this.openList = document.querySelector("#awtrix-open-list");
     this.status = document.querySelector("#awtrix-status");
 
-    this.nameInput.value = savedName;
+    this.nameInput.value = bridge ? bridge.getName() : "";
 
     this.addEventListener(this.nameInput, "input", this.onNameInput_);
     this.addEventListener(this.saveButton, "click", this.onSaveClick_);
@@ -27699,6 +27696,7 @@ return Q;
     if (bridge) {
       this.unsubscribes.push(bridge.on("list", this.onListResult_.bind(this)));
       this.unsubscribes.push(bridge.on("status", this.setStatus_.bind(this)));
+      this.unsubscribes.push(bridge.on("name", this.onNameLoaded_.bind(this)));
       bridge.requestList(); // refresh the icon list on every open
     }
   };
@@ -27712,7 +27710,13 @@ return Q;
   };
 
   ns.AwtrixController.prototype.onNameInput_ = function () {
-    savedName = this.nameInput.value;
+    if (pskl.app.awtrixBridge) {
+      pskl.app.awtrixBridge.setName(this.nameInput.value);
+    }
+  };
+
+  ns.AwtrixController.prototype.onNameLoaded_ = function (name) {
+    this.nameInput.value = name;
   };
 
   ns.AwtrixController.prototype.onSaveClick_ = function () {
@@ -27723,10 +27727,11 @@ return Q;
 
   ns.AwtrixController.prototype.onOpenChange_ = function () {
     var value = this.openList.value;
-    if (value && pskl.app.awtrixBridge) {
-      savedName = value.replace(/\.[^.]+$/, "");
-      this.nameInput.value = savedName;
-      pskl.app.awtrixBridge.load(value);
+    var bridge = pskl.app.awtrixBridge;
+    if (value && bridge) {
+      bridge.setName(value);
+      this.nameInput.value = bridge.getName();
+      bridge.load(value);
     }
   };
 
@@ -37877,7 +37882,7 @@ ns.ToolsHelper = {
     msg.ns = AWTRIX_NS;
     try {
       window.parent.postMessage(msg, parentOrigin);
-    } catch (e) {
+    } catch (_e) {
       /* not embedded */
     }
   }
@@ -37925,6 +37930,16 @@ ns.ToolsHelper = {
     );
   }
 
+  // ---- name of the icon currently in the editor -----------------------------
+  var iconName = "";
+  function stripExt(name) {
+    return String(name || "").replace(/\.[^.]+$/, "");
+  }
+  function setLoadedName(name) {
+    iconName = stripExt(name);
+    emit("name", iconName);
+  }
+
   // ---- load GIF/JPEG bytes coming back from AWTRIX into the editor -----------
   function loadIntoEditor(mime, dataBase64) {
     var img = new Image();
@@ -37969,7 +37984,7 @@ ns.ToolsHelper = {
         pskl.app.piskelController.getVisibleFrameIndexes().length > 1 &&
         !pskl.app.previewController.isPaused()
       );
-    } catch (e) {
+    } catch (_e) {
       return false;
     }
   }
@@ -38038,7 +38053,7 @@ ns.ToolsHelper = {
       } else {
         sendLiveBitmap();
       }
-    } catch (e) {
+    } catch (_e) {
       /* editor not ready yet */
     }
   }
@@ -38106,9 +38121,15 @@ ns.ToolsHelper = {
         emit("list", m.files || []);
         break;
       case "load-result":
+        if (m.name) {
+          setLoadedName(m.name);
+        }
         loadIntoEditor(m.mime, m.dataBase64);
         break;
       case "save-result":
+        if (m.ok && m.name) {
+          setLoadedName(m.name);
+        }
         emit(
           "status",
           m.ok
@@ -38136,6 +38157,12 @@ ns.ToolsHelper = {
     },
     load: function (name) {
       sendToParent({ type: "load", name: name });
+    },
+    getName: function () {
+      return iconName;
+    },
+    setName: function (name) {
+      iconName = stripExt(name);
     },
     setLive: setLive,
     isLiveOn: function () {
@@ -38171,4 +38198,4 @@ ns.ToolsHelper = {
   });
 })();
 
-//# sourceMappingURL=piskel-packaged-2026-07-26-09-04.js.map
+//# sourceMappingURL=piskel-packaged-2026-08-06-06-01.js.map
