@@ -78,6 +78,16 @@
     );
   }
 
+  // ---- name of the icon currently in the editor -----------------------------
+  var iconName = "";
+  function stripExt(name) {
+    return String(name || "").replace(/\.[^.]+$/, "");
+  }
+  function setLoadedName(name) {
+    iconName = stripExt(name);
+    emit("name", iconName);
+  }
+
   // ---- load GIF/JPEG bytes coming back from AWTRIX into the editor -----------
   function loadIntoEditor(mime, dataBase64) {
     var img = new Image();
@@ -259,9 +269,15 @@
         emit("list", m.files || []);
         break;
       case "load-result":
+        if (m.name) {
+          setLoadedName(m.name);
+        }
         loadIntoEditor(m.mime, m.dataBase64);
         break;
       case "save-result":
+        if (m.ok && m.name) {
+          setLoadedName(m.name);
+        }
         emit(
           "status",
           m.ok
@@ -289,6 +305,12 @@
     },
     load: function (name) {
       sendToParent({ type: "load", name: name });
+    },
+    getName: function () {
+      return iconName;
+    },
+    setName: function (name) {
+      iconName = stripExt(name);
     },
     setLive: setLive,
     isLiveOn: function () {

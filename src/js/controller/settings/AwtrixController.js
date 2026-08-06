@@ -10,9 +10,6 @@
 (function () {
   var ns = $.namespace("pskl.controller.settings");
 
-  // Icon name typed by the user survives drawer close/reopen.
-  var savedName = "";
-
   ns.AwtrixController = function (piskelController) {
     this.piskelController = piskelController;
     this.unsubscribes = [];
@@ -31,7 +28,7 @@
     this.openList = document.querySelector("#awtrix-open-list");
     this.status = document.querySelector("#awtrix-status");
 
-    this.nameInput.value = savedName;
+    this.nameInput.value = bridge ? bridge.getName() : "";
 
     this.addEventListener(this.nameInput, "input", this.onNameInput_);
     this.addEventListener(this.saveButton, "click", this.onSaveClick_);
@@ -40,6 +37,7 @@
     if (bridge) {
       this.unsubscribes.push(bridge.on("list", this.onListResult_.bind(this)));
       this.unsubscribes.push(bridge.on("status", this.setStatus_.bind(this)));
+      this.unsubscribes.push(bridge.on("name", this.onNameLoaded_.bind(this)));
       bridge.requestList(); // refresh the icon list on every open
     }
   };
@@ -53,7 +51,13 @@
   };
 
   ns.AwtrixController.prototype.onNameInput_ = function () {
-    savedName = this.nameInput.value;
+    if (pskl.app.awtrixBridge) {
+      pskl.app.awtrixBridge.setName(this.nameInput.value);
+    }
+  };
+
+  ns.AwtrixController.prototype.onNameLoaded_ = function (name) {
+    this.nameInput.value = name;
   };
 
   ns.AwtrixController.prototype.onSaveClick_ = function () {
@@ -64,10 +68,11 @@
 
   ns.AwtrixController.prototype.onOpenChange_ = function () {
     var value = this.openList.value;
-    if (value && pskl.app.awtrixBridge) {
-      savedName = value.replace(/\.[^.]+$/, "");
-      this.nameInput.value = savedName;
-      pskl.app.awtrixBridge.load(value);
+    var bridge = pskl.app.awtrixBridge;
+    if (value && bridge) {
+      bridge.setName(value);
+      this.nameInput.value = bridge.getName();
+      bridge.load(value);
     }
   };
 
