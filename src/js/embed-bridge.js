@@ -9,6 +9,10 @@
  *   Editor -> AWTRIX:  ready | save | list | load | live | live-off
  *   AWTRIX -> Editor:  theme | config | list-result | load-result | save-result
  *
+ * Submitting to the shared icon database is the one exception: it is a public
+ * HTTPS API, so this file posts to it directly and the editor can do it while
+ * running standalone.
+ *
  * This file is transport only. The Save/Open/Live UI lives in
  * controller/settings/AwtrixController.js, which drives the bridge through the
  * public API published on `pskl.app.awtrixBridge` (see the bottom of this
@@ -54,9 +58,12 @@
       }
     };
   }
-  function emit(type, data) {
+  // `extra` is optional and only "status" uses it today: a {url, label} pair the
+  // UI turns into a link, so an answer that points somewhere (published icon,
+  // sign-in page) can be followed instead of merely read.
+  function emit(type, data, extra) {
     (listeners[type] || []).slice().forEach(function (fn) {
-      fn(data);
+      fn(data, extra);
     });
   }
 
@@ -74,6 +81,114 @@
           mime: "image/gif",
           dataBase64: String(gifDataUri).split(",")[1] || ""
         });
+      }
+    );
+  }
+
+  // ---- submit the current sprite to the shared icon database ----------------
+  // Posted straight to the submit service rather than through the AWTRIX page,
+  // so this also works when the editor is opened on its own. The Hub passes
+  // ?iconapi=/icons/ when it frames the editor itself: root-relative, so the
+  // POST stays same-origin and carries the session no matter which hostname the
+  // Hub answers on. Only a standalone or clock-framed editor falls back here.
+  var ICONAPI_DEFAULT = "https://flows.blueforcer.de/icons/";
+
+  function iconApiUrl() {
+    var url = query("iconapi") || ICONAPI_DEFAULT;
+    return url.charAt(url.length - 1) === "/" ? url : url + "/";
+  }
+
+  function base64ToBlob(base64, mime) {
+    var binary = atob(base64);
+    var bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return new Blob([bytes], { type: mime });
+  }
+
+  // Every code the submit endpoint can answer with. tooManyFrames is never sent
+  // - frames are not a limit, a 153-frame icon runs fine on a TC001 - but a
+  // client with no name for a code prints the code, so the vocabulary is whole.
+  var SUBMIT_ERRORS = {
+    badFormat: "Not an image the database accepts",
+    tooLarge: "The file is too large",
+    badName: "That name cannot be used",
+    tooBig: "Bigger than 32x8 pixels",
+    tooManyFrames: "Too many frames",
+    rateLimited: "Too many submissions - try again later",
+    duplicate: "Already in the database",
+    notLoggedIn: "Sign in on the AWTRIX Hub to publish"
+  };
+
+  function reportSubmission(ok, body) {
+    // The icon goes live immediately - moderation is after the fact - so there
+    // is no review to wait for.
+    if (ok && body.ok) {
+      emit(
+        "status",
+        "Published as " + body.slug,
+        body.pr ? { url: body.pr, label: "Open the icon" } : null
+      );
+      return;
+    }
+    // Framed inside the clock's own web UI this is the *only* possible outcome:
+    // that page is served from http://<device-ip>, so the Hub session cookie is
+    // cross-site and never rides along with the POST. Saying "failed" would send
+    // people hunting a fault that is not there - the drawing publishes from the
+    // Hub's own editor, and that is where the link goes.
+    if (body.error === "notLoggedIn") {
+      emit(
+        "status",
+        body.message || SUBMIT_ERRORS.notLoggedIn,
+        body.pr ? { url: body.pr, label: "Open the Hub" } : null
+      );
+      return;
+    }
+    if (body.error === "duplicate" && body.slug) {
+      emit("status", "Already in the database as " + body.slug);
+      return;
+    }
+    // `message` is the Hub's own human sentence and outranks the bare code.
+    emit(
+      "status",
+      "Submit failed: " +
+        (body.message ||
+          SUBMIT_ERRORS[body.error] ||
+          body.error ||
+          "unknown error")
+    );
+  }
+
+  function saveToCloud(name) {
+    var Gif = pskl.controller.settings.exportimage.GifExportController;
+    var ctrl = new Gif(pskl.app.piskelController);
+    ctrl.renderAsImageDataAnimatedGIF(
+      1 /* native size */,
+      pskl.app.piskelController.getFPS(),
+      function (gifDataUri) {
+        var form = new FormData();
+        form.append(
+          "file",
+          base64ToBlob(String(gifDataUri).split(",")[1] || "", "image/gif"),
+          "icon.gif"
+        );
+        form.append("name", name || "icon");
+        form.append("source", "piskel");
+        fetch(iconApiUrl() + "submit", { method: "POST", body: form })
+          .then(function (response) {
+            return response
+              .json()
+              .catch(function () {
+                return {};
+              })
+              .then(function (body) {
+                reportSubmission(response.ok, body);
+              });
+          })
+          .catch(function () {
+            emit("status", "Icon database unreachable");
+          });
       }
     );
   }
@@ -299,6 +414,10 @@
     save: function (name) {
       emit("status", "Saving…");
       saveToAwtrix(name);
+    },
+    saveToCloud: function (name) {
+      emit("status", "Submitting…");
+      saveToCloud(name);
     },
     requestList: function () {
       sendToParent({ type: "list" });

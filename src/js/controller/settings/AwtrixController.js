@@ -25,6 +25,7 @@
 
     this.nameInput = document.querySelector("#awtrix-name");
     this.saveButton = document.querySelector("#awtrix-save");
+    this.cloudButton = document.querySelector("#awtrix-save-cloud");
     this.openList = document.querySelector("#awtrix-open-list");
     this.status = document.querySelector("#awtrix-status");
 
@@ -32,6 +33,7 @@
 
     this.addEventListener(this.nameInput, "input", this.onNameInput_);
     this.addEventListener(this.saveButton, "click", this.onSaveClick_);
+    this.addEventListener(this.cloudButton, "click", this.onCloudClick_);
     this.addEventListener(this.openList, "change", this.onOpenChange_);
 
     if (bridge) {
@@ -66,6 +68,12 @@
     }
   };
 
+  ns.AwtrixController.prototype.onCloudClick_ = function () {
+    if (pskl.app.awtrixBridge) {
+      pskl.app.awtrixBridge.saveToCloud(this.nameInput.value.trim());
+    }
+  };
+
   ns.AwtrixController.prototype.onOpenChange_ = function () {
     var value = this.openList.value;
     var bridge = pskl.app.awtrixBridge;
@@ -76,9 +84,28 @@
     }
   };
 
-  ns.AwtrixController.prototype.setStatus_ = function (text) {
-    if (this.status) {
-      this.status.textContent = text || "";
+  /**
+   * @param {string} text
+   * @param {?{url: string, label: string}} link where the answer points, if
+   *        anywhere - the published icon, or the Hub sign-in page when the
+   *        editor is framed by the clock and has no Hub session to publish with.
+   */
+  ns.AwtrixController.prototype.setStatus_ = function (text, link) {
+    if (!this.status) {
+      return;
+    }
+    this.status.textContent = text || "";
+    if (link && link.url) {
+      var anchor = document.createElement("a");
+      anchor.href = link.url;
+      anchor.target = "_blank";
+      // The editor runs framed; without noopener the opened tab could reach
+      // back through window.opener.
+      anchor.rel = "noopener noreferrer";
+      anchor.className = "save-status-link";
+      anchor.textContent = link.label || "Open";
+      this.status.appendChild(document.createTextNode(" "));
+      this.status.appendChild(anchor);
     }
   };
 

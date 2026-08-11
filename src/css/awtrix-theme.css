@@ -138,6 +138,19 @@ html[data-theme] #drawing-canvas-container {
   color: var(--dim);
   font-size: 12px;
 }
+/* The status line can carry a link - the published icon, or the Hub sign-in
+   page when the clock frames this editor. It has to read as clickable against
+   the dimmed text around it. */
+.awtrix-settings .save-status-link {
+  color: var(--fg);
+  text-decoration: underline;
+  white-space: nowrap;
+}
+.awtrix-settings .awtrix-cloud-hint {
+  color: var(--dim);
+  font-size: 11px;
+  line-height: 1.4;
+}
 
 /* Resize panel: two matrix-size buttons side by side. */
 .awtrix-resize .settings-item {
