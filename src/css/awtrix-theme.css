@@ -103,7 +103,7 @@ html[data-theme] input,
 html[data-theme] select,
 html[data-theme] textarea,
 html[data-theme] button {
-  background: var(--bg);
+  background-color: var(--bg);
   color: var(--fg);
   border: 1px solid var(--border);
   border-radius: 7px;
