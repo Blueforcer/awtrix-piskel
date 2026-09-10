@@ -168,3 +168,9 @@ html[data-theme] #drawing-canvas-container {
   font-size: 12px;
   margin-top: 2px;
 }
+
+/* Embedded Hub controls use the host workspace for preview and private drafts. */
+[data-host="hub"] .awtrix-live-toggle,
+.awtrix-settings [hidden] {
+  display: none !important;
+}

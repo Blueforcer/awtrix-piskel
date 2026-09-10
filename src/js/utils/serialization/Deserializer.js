@@ -1,7 +1,8 @@
 (function () {
   var ns = $.namespace("pskl.utils.serialization");
 
-  ns.Deserializer = function (data, callback) {
+  ns.Deserializer = function (data, callback, onError) {
+    this.onError_ = onError || function () {};
     this.layersToLoad_ = 0;
     this.data_ = data;
     this.callback_ = callback;
@@ -13,7 +14,7 @@
     try {
       var deserializer;
       if (data.modelVersion == Constants.MODEL_VERSION) {
-        deserializer = new ns.Deserializer(data, onSuccess);
+        deserializer = new ns.Deserializer(data, onSuccess, onError);
       } else if (data.modelVersion == 1) {
         deserializer = new ns.backward.Deserializer_v1(data, onSuccess);
       } else {
@@ -70,16 +71,23 @@
         var image = new Image();
         // Load the chunk image in an Image object.
         image.onload = function () {
-          // extract the chunkFrames from the chunk image
-          var chunkFrames = pskl.utils.FrameUtils.createFramesFromChunk(
-            image,
-            chunk.layout
-          );
-          // add each image to the frames array, at the extracted index
-          chunkFrames.forEach(function (chunkFrame) {
-            frames[chunkFrame.index] = chunkFrame.frame;
-          });
-          deferred.resolve();
+          try {
+            // extract the chunkFrames from the chunk image
+            var chunkFrames = pskl.utils.FrameUtils.createFramesFromChunk(
+              image,
+              chunk.layout
+            );
+            // add each image to the frames array, at the extracted index
+            chunkFrames.forEach(function (chunkFrame) {
+              frames[chunkFrame.index] = chunkFrame.frame;
+            });
+            deferred.resolve();
+          } catch (error) {
+            deferred.reject(error);
+          }
+        };
+        image.onerror = function () {
+          deferred.reject(new Error("Invalid project image"));
         };
         image.src = chunk.base64PNG;
         return deferred.promise;
@@ -94,10 +102,11 @@
           this.onLayerLoaded_();
         }.bind(this)
       )
-      .catch(function (error) {
-        console.error("Failed to deserialize layer");
-        console.error(error);
-      });
+      .catch(
+        function (error) {
+          this.onError_(error);
+        }.bind(this)
+      );
 
     return layer;
   };

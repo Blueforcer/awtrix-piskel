@@ -9,9 +9,9 @@
  *   Editor -> AWTRIX:  ready | save | list | load | live | live-off
  *   AWTRIX -> Editor:  theme | config | list-result | load-result | save-result
  *
- * Submitting to the shared icon database is the one exception: it is a public
- * HTTPS API, so this file posts to it directly and the editor can do it while
- * running standalone.
+ * The Hub owns private project storage and publication through project-*
+ * messages and publish-request/publish-result. A device can opt into the same
+ * publication broker. Only standalone/device legacy mode submits directly.
  *
  * This file is transport only. The Save/Open/Live UI lives in
  * controller/settings/AwtrixController.js, which drives the bridge through the
@@ -24,6 +24,73 @@
   var AWTRIX_NS = "awtrix";
   var parentOrigin = "*"; // tightened to the real parent origin on first inbound message
   var allowedSizes = ["8x8", "32x8"];
+  var publishViaParent = query("host") === "hub";
+  var basedOn = null;
+  var iconOrigin = null;
+  var originDescriptor = null;
+  var pendingPublication = null;
+  var publicationSequence = 0;
+  var hostIsHub = query("host") === "hub";
+  var draftViaParent = hostIsHub;
+  var original = null;
+  var projectRevision = 0;
+  var projectSequence = 0;
+  var projectTimer = null;
+  var projectSignature = null;
+  var savedSignature = null;
+  var pendingSaves = {};
+  var observedProjects = {};
+  var loadingProject = false;
+  var loadSequence = 0;
+
+  function isHub() {
+    return hostIsHub;
+  }
+  function supportsProjects() {
+    return isHub() || draftViaParent;
+  }
+
+  function descriptor() {
+    return pskl.app.piskelController
+      .getWrappedPiskelController()
+      .piskel.getDescriptor();
+  }
+  function currentOrigin() {
+    // History restores the same descriptor. A newly created/imported document
+    // has a different one, so it must never inherit another icon's attribution.
+    if (originDescriptor !== descriptor()) {
+      basedOn = null;
+      iconOrigin = null;
+      original = null;
+      originDescriptor = descriptor();
+      iconName = String(originDescriptor.name || "");
+      emit("name", iconName);
+    }
+    return iconOrigin;
+  }
+  function setProvenance(base, origin) {
+    basedOn = /^[A-Za-z0-9_-]{1,32}$/.test(base || "") ? base : null;
+    iconOrigin = origin && typeof origin === "object" ? origin : null;
+    originDescriptor = descriptor();
+    emit("provenance");
+  }
+  function localHash(base64) {
+    if (!window.crypto || !window.crypto.subtle) {
+      return Promise.resolve(null);
+    }
+    return base64ToBlob(base64, "image/gif")
+      .arrayBuffer()
+      .then(function (bytes) {
+        return window.crypto.subtle.digest("SHA-256", bytes);
+      })
+      .then(function (hash) {
+        return Array.from(new Uint8Array(hash))
+          .map(function (b) {
+            return b.toString(16).padStart(2, "0");
+          })
+          .join("");
+      });
+  }
 
   function query(name) {
     var m = new RegExp("[?&]" + name + "=([^&]*)").exec(window.location.search);
@@ -67,8 +134,398 @@
     });
   }
 
+  // Hub owns durable storage. This envelope keeps Piskel's editable layers,
+  // frame order/timing and the source bytes together, independently of filenames.
+  function nativeProject() {
+    var pc = pskl.app.piskelController;
+    return JSON.parse(
+      pskl.utils.serialization.Serializer.serialize(pc.getPiskel())
+    );
+  }
+  function contentSignature(project) {
+    var content = JSON.parse(JSON.stringify(project));
+    delete content.piskel.name;
+    delete content.piskel.description;
+    return JSON.stringify(content);
+  }
+  function snapshot() {
+    currentOrigin();
+    var native = nativeProject();
+    native.piskel.name = iconName;
+    return {
+      version: 1,
+      name: iconName,
+      piskel: native,
+      based_on: basedOn,
+      origin: iconOrigin,
+      original: original
+    };
+  }
+  function unchangedOriginal(project) {
+    return !!(
+      project.original &&
+      project.original.slug &&
+      project.original.baseline === contentSignature(project.piskel)
+    );
+  }
+  function observeProject() {
+    var project = snapshot();
+    var signature = JSON.stringify(project);
+    if (signature !== projectSignature) {
+      projectRevision += 1;
+      projectSignature = signature;
+    }
+    observedProjects[projectRevision] = signature;
+    Object.keys(observedProjects).forEach(function (revision) {
+      if (Number(revision) !== projectRevision) {
+        delete observedProjects[revision];
+      }
+    });
+    return {
+      project: project,
+      revision: projectRevision,
+      unchangedOriginal: unchangedOriginal(project)
+    };
+  }
+  function projectReply(type, requestId) {
+    try {
+      var result = observeProject();
+      result.type = type;
+      result.requestId = requestId;
+      result.ok = true;
+      sendToParent(result);
+      return result;
+    } catch (_error) {
+      sendToParent({
+        type: type,
+        requestId: requestId,
+        ok: false,
+        error: "projectExportFailed",
+        message: "Your draft could not be read. Please try again."
+      });
+      return null;
+    }
+  }
+  function notifyProjectChanged() {
+    if (!supportsProjects() || loadingProject) {
+      return;
+    }
+    var previous = projectSignature;
+    var result = projectReply("project-changed");
+    if (result && previous !== projectSignature) {
+      emit("dirty", true);
+    }
+  }
+  function scheduleProjectChanged() {
+    if (!supportsProjects() || loadingProject) {
+      return;
+    }
+    clearTimeout(projectTimer);
+    projectTimer = setTimeout(notifyProjectChanged, 400);
+  }
+  function setName(name) {
+    currentOrigin();
+    iconName = supportsProjects() ? String(name || "") : stripExt(name);
+    if (supportsProjects()) {
+      descriptor().name = iconName;
+    }
+    emit("name", iconName);
+    scheduleProjectChanged();
+  }
+  function saveProject(name) {
+    if (!supportsProjects()) {
+      return;
+    }
+    if (typeof name === "string") {
+      setName(name);
+    }
+    clearTimeout(projectTimer);
+    var requestId = "draft-" + ++projectSequence;
+    // Register before sending: a synchronous parent/test broker may reply at once.
+    var result;
+    try {
+      result = observeProject();
+      pendingSaves[requestId] = {
+        signature: projectSignature,
+        revision: result.revision
+      };
+    } catch (_error) {
+      emit("status", "Your draft could not be read. Please try again.");
+      return;
+    }
+    emit("status", "Saving draft…");
+    result.type = "project-save";
+    result.requestId = requestId;
+    sendToParent(result);
+  }
+  function acknowledgeProject(m) {
+    var saved =
+      m.type === "project-saved"
+        ? { signature: observedProjects[m.revision] }
+        : pendingSaves[m.requestId];
+    if (!saved || !saved.signature) {
+      return;
+    }
+    delete pendingSaves[m.requestId];
+    if (!m.ok) {
+      emit(
+        "status",
+        m.message || "Your draft could not be saved. Please try again."
+      );
+      return;
+    }
+    if (saved.signature === JSON.stringify(snapshot())) {
+      savedSignature = saved.signature;
+      $.publish(Events.PISKEL_SAVED);
+      emit("status", m.message || "Draft saved privately.");
+      emit("dirty", false);
+    }
+  }
+  function validateProject(project) {
+    if (
+      !project ||
+      project.version !== 1 ||
+      typeof project.name !== "string" ||
+      project.name.length > 200 ||
+      JSON.stringify(project).length > 12 * 1024 * 1024
+    ) {
+      throw new Error("Invalid project envelope");
+    }
+    var data = project.piskel && project.piskel.piskel;
+    if (
+      !project.piskel ||
+      project.piskel.modelVersion !== Constants.MODEL_VERSION ||
+      !data ||
+      !allowedSizes.includes(data.width + "x" + data.height) ||
+      !Number.isFinite(data.fps) ||
+      data.fps < 0 ||
+      data.fps > 24 ||
+      !Array.isArray(data.layers) ||
+      !data.layers.length ||
+      data.layers.length > 64
+    ) {
+      throw new Error("Invalid project dimensions or layers");
+    }
+    var frameCount;
+    data.layers.forEach(function (serialized) {
+      var layer = JSON.parse(serialized);
+      if (
+        !Number.isInteger(layer.frameCount) ||
+        layer.frameCount < 1 ||
+        layer.frameCount > 2048 ||
+        (frameCount && frameCount !== layer.frameCount) ||
+        !Array.isArray(layer.chunks) ||
+        !layer.chunks.length ||
+        layer.chunks.length > layer.frameCount
+      ) {
+        throw new Error("Invalid project frames");
+      }
+      frameCount = layer.frameCount;
+      var seen = {};
+      layer.chunks.forEach(function (chunk) {
+        if (
+          !/^data:image\/png;base64,[A-Za-z0-9+/]+=*$/.test(
+            chunk.base64PNG || ""
+          ) ||
+          !Array.isArray(chunk.layout) ||
+          !chunk.layout.length
+        ) {
+          throw new Error("Invalid project image");
+        }
+        // Validate the PNG dimensions before handing compressed input to Image.
+        var header = atob(chunk.base64PNG.split(",")[1].slice(0, 44));
+        function uint32(offset) {
+          return [0, 1, 2, 3].reduce(function (value, i) {
+            return value * 256 + header.charCodeAt(offset + i);
+          }, 0);
+        }
+        if (
+          header.charCodeAt(0) !== 137 ||
+          header.slice(1, 4) !== "PNG" ||
+          header.slice(12, 16) !== "IHDR" ||
+          uint32(16) !== data.width * chunk.layout.length ||
+          !Array.isArray(chunk.layout[0]) ||
+          uint32(20) !== data.height * chunk.layout[0].length
+        ) {
+          throw new Error("Invalid project image dimensions");
+        }
+        chunk.layout.forEach(function (column) {
+          if (
+            !Array.isArray(column) ||
+            !column.length ||
+            column.length !== chunk.layout[0].length
+          ) {
+            throw new Error("Invalid frame layout");
+          }
+          column.forEach(function (index) {
+            if (
+              !Number.isInteger(index) ||
+              index < 0 ||
+              index >= frameCount ||
+              seen[index]
+            ) {
+              throw new Error("Invalid frame index");
+            }
+            seen[index] = true;
+          });
+        });
+      });
+      if (Object.keys(seen).length !== frameCount) {
+        throw new Error("Missing project frames");
+      }
+    });
+    if (
+      data.hiddenFrames &&
+      (!Array.isArray(data.hiddenFrames) ||
+        data.hiddenFrames.some(function (index) {
+          return !Number.isInteger(index) || index < 0 || index >= frameCount;
+        }))
+    ) {
+      throw new Error("Invalid hidden frame");
+    }
+    if (
+      project.original &&
+      (!/^[A-Za-z0-9_-]{1,32}$/.test(project.original.slug || "") ||
+        !/^image\/(gif|jpeg|png)$/.test(project.original.mime || "") ||
+        !/^[A-Za-z0-9+/]+=*$/.test(project.original.dataBase64 || "") ||
+        typeof project.original.baseline !== "string")
+    ) {
+      throw new Error("Invalid original image");
+    }
+  }
+  function loadProject(m) {
+    var sequence = ++loadSequence;
+    var timer;
+    var finished = false;
+    function finish(ok, message) {
+      if (sequence !== loadSequence || finished) {
+        return;
+      }
+      finished = true;
+      clearTimeout(timer);
+      loadingProject = false;
+      sendToParent({
+        type: "project-load-result",
+        requestId: m.requestId,
+        ok: ok,
+        error: ok ? null : "invalidProject",
+        message: message
+      });
+      if (ok) {
+        notifyProjectChanged();
+        scheduleLive();
+      }
+    }
+    try {
+      validateProject(m.project);
+      var project = JSON.parse(JSON.stringify(m.project));
+      loadingProject = true;
+      timer = setTimeout(function () {
+        finish(
+          false,
+          "This draft could not be opened. Your current drawing is still here."
+        );
+        loadSequence += 1;
+      }, 15000);
+      pskl.utils.serialization.Deserializer.deserialize(
+        project.piskel,
+        function (piskel) {
+          if (sequence !== loadSequence) {
+            return;
+          }
+          pskl.app.piskelController.setPiskel(piskel);
+          setProvenance(project.based_on, project.origin);
+          original = project.original || null;
+          setName(project.name);
+          pskl.app.piskelController.setFPS(piskel.getFPS());
+          savedSignature = null;
+          finish(true);
+        },
+        function () {
+          finish(
+            false,
+            "This draft could not be opened. Your current drawing is still here."
+          );
+        }
+      );
+    } catch (_error) {
+      finish(false, "This draft is invalid or uses an unsupported size.");
+    }
+  }
+  function newProject(m) {
+    if (!allowedSizes.includes(m.width + "x" + m.height)) {
+      sendToParent({
+        type: "project-load-result",
+        requestId: m.requestId,
+        ok: false,
+        error: "invalidSize",
+        message: "Choose an 8×8 or 32×8 drawing."
+      });
+      return;
+    }
+    loadSequence += 1;
+    loadingProject = true;
+    var piskel = new pskl.model.Piskel(
+      m.width,
+      m.height,
+      10,
+      new pskl.model.piskel.Descriptor("", "")
+    );
+    var layer = new pskl.model.Layer("Layer 1");
+    layer.addFrame(new pskl.model.Frame(m.width, m.height));
+    piskel.addLayer(layer);
+    pskl.app.piskelController.setPiskel(piskel);
+    pskl.app.piskelController.setFPS(piskel.getFPS());
+    setProvenance(null, null);
+    original = null;
+    setName("");
+    loadingProject = false;
+    savedSignature = null;
+    sendToParent({
+      type: "project-load-result",
+      requestId: m.requestId,
+      ok: true
+    });
+    notifyProjectChanged();
+    scheduleLive();
+  }
+  function exportImage(callback) {
+    try {
+      var project = supportsProjects() ? snapshot() : null;
+      if (project && unchangedOriginal(project)) {
+        callback(null, {
+          name: iconName,
+          mime: project.original.mime,
+          dataBase64: project.original.dataBase64,
+          unchangedOriginal: true,
+          originalSlug: project.original.slug
+        });
+        return;
+      }
+      var Gif = pskl.controller.settings.exportimage.GifExportController;
+      new Gif(pskl.app.piskelController).renderAsImageDataAnimatedGIF(
+        1,
+        pskl.app.piskelController.getFPS(),
+        function (uri) {
+          callback(null, {
+            name: iconName,
+            mime: "image/gif",
+            dataBase64: String(uri).split(",")[1] || "",
+            unchangedOriginal: false,
+            originalSlug:
+              project && project.original ? project.original.slug : null
+          });
+        }
+      );
+    } catch (_error) {
+      callback("The image could not be exported. Please try again.");
+    }
+  }
+
   // ---- export the current sprite as a GIF and hand the bytes to AWTRIX ------
   function saveToAwtrix(name) {
+    var origin = currentOrigin();
+    var base = basedOn;
     var Gif = pskl.controller.settings.exportimage.GifExportController;
     var ctrl = new Gif(pskl.app.piskelController);
     ctrl.renderAsImageDataAnimatedGIF(
@@ -79,19 +536,18 @@
           type: "save",
           name: name || "icon",
           mime: "image/gif",
-          dataBase64: String(gifDataUri).split(",")[1] || ""
+          dataBase64: String(gifDataUri).split(",")[1] || "",
+          origin: origin,
+          based_on: base
         });
       }
     );
   }
 
   // ---- submit the current sprite to the shared icon database ----------------
-  // Posted straight to the submit service rather than through the AWTRIX page,
-  // so this also works when the editor is opened on its own. The Hub passes
-  // ?iconapi=/icons/ when it frames the editor itself: root-relative, so the
-  // POST stays same-origin and carries the session no matter which hostname the
-  // Hub answers on. Only a standalone or clock-framed editor falls back here.
-  var ICONAPI_DEFAULT = "https://flows.blueforcer.de/icons/";
+  // Hub publication always goes through the parent workspace. The direct
+  // endpoint remains for legacy device/standalone embeddings without a broker.
+  var ICONAPI_DEFAULT = "https://hub.flows.blueforcer.de/icons/";
 
   function iconApiUrl() {
     var url = query("iconapi") || ICONAPI_DEFAULT;
@@ -114,6 +570,8 @@
     badFormat: "Not an image the database accepts",
     tooLarge: "The file is too large",
     badName: "That name cannot be used",
+    descriptiveNameRequired:
+      "Give your icon a descriptive name with at least one letter.",
     tooBig: "Bigger than 32x8 pixels",
     tooManyFrames: "Too many frames",
     rateLimited: "Too many submissions - try again later",
@@ -121,22 +579,62 @@
     notLoggedIn: "Sign in on the AWTRIX Hub to publish"
   };
 
-  function reportSubmission(ok, body) {
+  function reportSubmission(ok, body, context) {
     // The icon goes live immediately - moderation is after the fact - so there
     // is no review to wait for.
     if (ok && body.ok) {
       emit(
         "status",
-        "Published as " + body.slug,
+        body.status === "existing"
+          ? "This icon is already in the Hub. Use " + body.slug
+          : body.status === "updated"
+            ? "Updated " + body.slug
+            : "Published as " + body.slug,
         body.pr ? { url: body.pr, label: "Open the icon" } : null
       );
+      if (context && /^[A-Za-z0-9_-]{1,32}$/.test(body.slug || "")) {
+        var hub = new URL(iconApiUrl(), window.location.href).href;
+        var finish = function (origin) {
+          if (context.descriptor === descriptor()) {
+            setProvenance(body.slug, origin);
+            if (context.project) {
+              original = {
+                slug: body.slug,
+                mime: context.mime || "image/gif",
+                dataBase64: context.dataBase64,
+                baseline: contentSignature(context.project.piskel)
+              };
+              scheduleProjectChanged();
+            }
+          }
+          sendToParent({
+            type: "published",
+            requestId: context.requestId,
+            name: context.name,
+            slug: body.slug,
+            hub: hub,
+            sha256: body.sha256,
+            origin: origin,
+            mime: context.mime || "image/gif",
+            dataBase64: context.dataBase64,
+            status: body.status
+          });
+        };
+        if (body.origin) {
+          finish(body.origin);
+        } else {
+          localHash(context.dataBase64)
+            .then(function (hash) {
+              finish(hash ? { hub: hub, slug: body.slug, sha256: hash } : null);
+            })
+            .catch(function () {
+              finish(null);
+            });
+        }
+      }
       return;
     }
-    // Framed inside the clock's own web UI this is the *only* possible outcome:
-    // that page is served from http://<device-ip>, so the Hub session cookie is
-    // cross-site and never rides along with the POST. Saying "failed" would send
-    // people hunting a fault that is not there - the drawing publishes from the
-    // Hub's own editor, and that is where the link goes.
+    // The host can offer sign-in without discarding the private drawing.
     if (body.error === "notLoggedIn") {
       emit(
         "status",
@@ -146,7 +644,11 @@
       return;
     }
     if (body.error === "duplicate" && body.slug) {
-      emit("status", "Already in the database as " + body.slug);
+      emit(
+        "status",
+        "This icon is already in the Hub. Use " + body.slug,
+        body.pr ? { url: body.pr, label: "Open the icon" } : null
+      );
       return;
     }
     // `message` is the Hub's own human sentence and outranks the bare code.
@@ -160,37 +662,114 @@
     );
   }
 
-  function saveToCloud(name) {
-    var Gif = pskl.controller.settings.exportimage.GifExportController;
-    var ctrl = new Gif(pskl.app.piskelController);
-    ctrl.renderAsImageDataAnimatedGIF(
-      1 /* native size */,
-      pskl.app.piskelController.getFPS(),
-      function (gifDataUri) {
-        var form = new FormData();
-        form.append(
-          "file",
-          base64ToBlob(String(gifDataUri).split(",")[1] || "", "image/gif"),
-          "icon.gif"
+  function publicationNameError(name) {
+    return /\p{L}/u.test(String(name || "").trim())
+      ? ""
+      : SUBMIT_ERRORS.descriptiveNameRequired;
+  }
+
+  function saveToCloud(name, options) {
+    options = options || {};
+    name = String(name || "").trim();
+    var nameError = publicationNameError(name);
+    if (nameError) {
+      emit("status", nameError);
+      return;
+    }
+    if (pendingPublication) {
+      emit("status", "Publishing…");
+      return;
+    }
+    currentOrigin();
+    var context = {
+      requestId: "publish-" + ++publicationSequence,
+      name: name,
+      based_on: basedOn,
+      descriptor: descriptor(),
+      project: supportsProjects() ? snapshot() : null,
+      action: options.action === "update" ? "update" : "publish",
+      slug: options.slug || null,
+      expected_sha256: options.expected_sha256 || null
+    };
+    pendingPublication = context;
+    context.timeout = setTimeout(function () {
+      if (pendingPublication === context) {
+        pendingPublication = null;
+        emit(
+          "status",
+          "The Hub has not replied. Your draft is still here; please try again."
         );
-        form.append("name", name || "icon");
-        form.append("source", "piskel");
-        fetch(iconApiUrl() + "submit", { method: "POST", body: form })
-          .then(function (response) {
-            return response
-              .json()
-              .catch(function () {
-                return {};
-              })
-              .then(function (body) {
-                reportSubmission(response.ok, body);
-              });
-          })
-          .catch(function () {
-            emit("status", "Icon database unreachable");
-          });
       }
-    );
+    }, 60000);
+    exportImage(function (error, image) {
+      if (pendingPublication !== context) {
+        return;
+      }
+      if (error) {
+        clearTimeout(context.timeout);
+        pendingPublication = null;
+        emit("status", error);
+        return;
+      }
+      context.dataBase64 = image.dataBase64;
+      context.mime = image.mime;
+      context.unchangedOriginal = image.unchangedOriginal;
+      context.originalSlug = image.originalSlug;
+      if (publishViaParent) {
+        sendToParent({
+          type: "publish",
+          requestId: context.requestId,
+          name: context.name,
+          mime: context.mime,
+          dataBase64: context.dataBase64,
+          based_on: context.based_on,
+          action: context.action,
+          slug: context.slug,
+          expected_sha256: context.expected_sha256,
+          unchangedOriginal: context.unchangedOriginal,
+          originalSlug: context.originalSlug,
+          project: context.project
+        });
+        return;
+      }
+      var form = new FormData();
+      form.append(
+        "file",
+        base64ToBlob(context.dataBase64, "image/gif"),
+        "icon.gif"
+      );
+      form.append("name", context.name);
+      form.append("source", "piskel");
+      form.append("agree", "1");
+      form.append("response", "resolve");
+      if (context.based_on) {
+        form.append("based_on", context.based_on);
+      }
+      fetch(iconApiUrl() + "submit", {
+        method: "POST",
+        body: form,
+        redirect: "error"
+      })
+        .then(function (response) {
+          return response
+            .json()
+            .catch(function () {
+              return {};
+            })
+            .then(function (body) {
+              reportSubmission(response.ok, body, context);
+            });
+        })
+        .catch(function () {
+          emit("status", "The Hub could not be reached. Please try again.");
+        })
+        .finally(function () {
+          clearTimeout(context.timeout);
+          if (pendingPublication === context) {
+            pendingPublication = null;
+          }
+        });
+    });
   }
 
   // ---- name of the icon currently in the editor -----------------------------
@@ -204,29 +783,114 @@
   }
 
   // ---- load GIF/JPEG bytes coming back from AWTRIX into the editor -----------
-  function loadIntoEditor(mime, dataBase64) {
+  function loadIntoEditor(mime, dataBase64, base, origin, name, requestId) {
+    var sequence = ++loadSequence;
+    var replied = false;
+    function acknowledge(ok) {
+      if (replied) {
+        return;
+      }
+      replied = true;
+      if (requestId != null) {
+        sendToParent({
+          type: "icon-load-result",
+          requestId: requestId,
+          ok: ok,
+          error: ok ? null : "imageLoadFailed",
+          message: ok
+            ? "Image opened."
+            : "This image could not be opened. Your current drawing is still here."
+        });
+      }
+    }
     var img = new Image();
-    img.onload = function () {
-      pskl.app.importService.newPiskelFromImage(
-        img,
-        {
-          importType: "single",
-          // the icon *is* the sprite (8x8 or 32x8); one frame per still image,
-          // animated GIFs are sliced into frames by SuperGif inside the service.
-          frameSizeX: img.width,
-          frameSizeY: img.height,
-          frameOffsetX: 0,
-          frameOffsetY: 0,
-          smoothing: false,
-          name: "icon"
-        },
-        function (piskel) {
-          pskl.app.piskelController.setPiskel(piskel);
-          if (pskl.app.previewController) {
-            pskl.app.previewController.setFPS(piskel.getFPS());
-          }
-        }
+    loadingProject = true;
+    var timer = setTimeout(function () {
+      img.onerror();
+    }, 15000);
+    img.onerror = function () {
+      if (sequence !== loadSequence) {
+        return;
+      }
+      clearTimeout(timer);
+      loadSequence += 1;
+      loadingProject = false;
+      acknowledge(false);
+      emit(
+        "status",
+        "This image could not be opened. Your current drawing is still here."
       );
+    };
+    img.onload = function () {
+      if (sequence !== loadSequence) {
+        return;
+      }
+      try {
+        pskl.app.importService.newPiskelFromImage(
+          img,
+          {
+            importType: "single",
+            // the icon *is* the sprite (8x8 or 32x8); one frame per still image,
+            // animated GIFs are sliced into frames by SuperGif inside the service.
+            frameSizeX: img.width,
+            frameSizeY: img.height,
+            frameOffsetX: 0,
+            frameOffsetY: 0,
+            smoothing: false,
+            name: stripExt(name) || "icon"
+          },
+          function (piskel) {
+            if (sequence !== loadSequence) {
+              return;
+            }
+            clearTimeout(timer);
+            pskl.app.piskelController.setPiskel(piskel);
+            setProvenance(base, origin);
+            setLoadedName(name || "");
+            pskl.app.piskelController.setFPS(piskel.getFPS());
+            var baseline = supportsProjects()
+              ? contentSignature(nativeProject())
+              : null;
+            function finishOriginal(isRegistryOriginal) {
+              if (sequence !== loadSequence) {
+                return;
+              }
+              original =
+                isRegistryOriginal && basedOn
+                  ? {
+                      slug: basedOn,
+                      mime: mime || "image/gif",
+                      dataBase64: dataBase64,
+                      baseline: baseline
+                    }
+                  : null;
+              loadingProject = false;
+              acknowledge(true);
+              scheduleProjectChanged();
+              scheduleLive();
+            }
+            if (
+              supportsProjects() &&
+              !isHub() &&
+              basedOn &&
+              origin &&
+              origin.sha256
+            ) {
+              localHash(dataBase64)
+                .then(function (hash) {
+                  finishOriginal(hash === origin.sha256);
+                })
+                .catch(function () {
+                  finishOriginal(false);
+                });
+            } else {
+              finishOriginal(isHub() && !!basedOn);
+            }
+          }
+        );
+      } catch (_error) {
+        img.onerror();
+      }
     };
     img.src = "data:" + (mime || "image/gif") + ";base64," + dataBase64;
   }
@@ -239,7 +903,8 @@
   // it in place.
   var liveOn = false,
     liveTimer = null,
-    liveEvents = null;
+    liveEvents = null,
+    liveSequence = 0;
   function isAnimating() {
     try {
       return (
@@ -292,6 +957,7 @@
     if (!liveOn) {
       return;
     }
+    var sequence = ++liveSequence;
     try {
       if (isAnimating()) {
         var pc = pskl.app.piskelController;
@@ -301,7 +967,10 @@
           pc.getFPS(),
           function (uri) {
             var b64 = String(uri).split(",")[1] || "";
-            if (b64.length > LIVE_BODY_MAX) {
+            if (!liveOn || sequence !== liveSequence) {
+              return;
+            }
+            if (!isHub() && b64.length > LIVE_BODY_MAX) {
               sendLiveBitmap(); // animation too big for one notification
             } else {
               sendToParent({
@@ -330,7 +999,11 @@
     liveTimer = setTimeout(pushLiveNow, 250); // debounce: the device serves one request at a time
   }
   function setLive(on) {
+    if (liveOn === on) {
+      return;
+    }
     liveOn = on;
+    liveSequence += 1;
     // Reflect the state on the transport's Live button (the primary control).
     var btn = document.querySelector(".awtrix-live-toggle");
     if (btn) {
@@ -343,6 +1016,8 @@
       Events.PISKEL_RESET,
       Events.FRAME_SIZE_CHANGED,
       Events.FPS_CHANGED,
+      Events.HISTORY_STATE_SAVED,
+      Events.HISTORY_STATE_LOADED,
       Events.PLAYBACK_TOGGLED // play → looping GIF, stop → still frame
     ];
     if (on) {
@@ -367,6 +1042,9 @@
     if (!m || m.ns !== AWTRIX_NS) {
       return;
     }
+    if (parentOrigin !== "*" && parentOrigin !== e.origin) {
+      return;
+    }
     if (parentOrigin === "*") {
       parentOrigin = e.origin;
     } // pin replies to the real parent
@@ -376,18 +1054,92 @@
         applyTheme(m.theme);
         break;
       case "config":
+        if (m.host === "hub") {
+          hostIsHub = true;
+        }
+        publishViaParent = isHub() || m.publishViaParent === true;
+        draftViaParent =
+          isHub() || m.draftViaParent === true || m.projectViaParent === true;
+        emit("config");
         if (Array.isArray(m.sizes) && m.sizes.length) {
           allowedSizes = m.sizes;
+        }
+        if (isHub()) {
+          setLive(true);
+        }
+        break;
+      case "project-request":
+        if (supportsProjects()) {
+          projectReply("project-result", m.requestId);
+        }
+        break;
+      case "project-load":
+        if (supportsProjects()) {
+          loadProject(m);
+        }
+        break;
+      case "project-new":
+        if (supportsProjects()) {
+          newProject(m);
+        }
+        break;
+      case "project-name":
+        if (supportsProjects()) {
+          setName(m.name);
+        }
+        break;
+      case "project-save-result":
+      case "project-saved":
+        if (supportsProjects()) {
+          acknowledgeProject(m);
+        }
+        break;
+      case "export-request":
+        if (supportsProjects()) {
+          exportImage(function (error, result) {
+            sendToParent(
+              Object.assign(
+                {
+                  type: "export-result",
+                  requestId: m.requestId,
+                  ok: !error,
+                  error: error ? "exportFailed" : null,
+                  message: error
+                },
+                result || {}
+              )
+            );
+          });
+        }
+        break;
+      case "publish-request":
+        if (supportsProjects()) {
+          saveToCloud(m.name, m);
         }
         break;
       case "list-result":
         emit("list", m.files || []);
         break;
       case "load-result":
-        if (m.name) {
-          setLoadedName(m.name);
+        loadIntoEditor(
+          m.mime,
+          m.dataBase64,
+          m.based_on,
+          m.origin,
+          m.name,
+          m.requestId
+        );
+        break;
+      case "publish-result":
+        if (
+          pendingPublication &&
+          m.requestId === pendingPublication.requestId
+        ) {
+          var completed = pendingPublication;
+          clearTimeout(completed.timeout);
+          pendingPublication = null;
+          reportSubmission(m.ok === true, m, completed);
         }
-        loadIntoEditor(m.mime, m.dataBase64);
         break;
       case "save-result":
         if (m.ok && m.name) {
@@ -409,15 +1161,75 @@
     }
   });
 
+  function canUpdatePublished() {
+    var origin = currentOrigin();
+    if (
+      isHub() ||
+      !publishViaParent ||
+      !origin ||
+      !/^[A-Za-z0-9_-]{1,32}$/.test(origin.slug || "") ||
+      !/^[a-f0-9]{64}$/.test(origin.sha256 || "")
+    ) {
+      return false;
+    }
+    try {
+      return (
+        new URL(origin.hub).href ===
+        new URL(iconApiUrl(), window.location.href).href
+      );
+    } catch (_error) {
+      return false;
+    }
+  }
+
   // ---- public API for the AWTRIX settings panel -----------------------------
   var api = {
     save: function (name) {
       emit("status", "Saving…");
-      saveToAwtrix(name);
+      if (isHub()) {
+        saveProject(name);
+      } else {
+        saveToAwtrix(name);
+      }
+    },
+    saveProject: saveProject,
+    isDirty: function () {
+      return (
+        supportsProjects() && savedSignature !== JSON.stringify(snapshot())
+      );
+    },
+    download: function () {
+      if (isHub()) {
+        sendToParent({ type: "download-request" });
+      } else {
+        saveToAwtrix(iconName);
+      }
+    },
+    publicationNameError: publicationNameError,
+    canUpdatePublished: canUpdatePublished,
+    updatePublished: function (name) {
+      if (!canUpdatePublished()) {
+        emit(
+          "status",
+          "Open your published icon from this Hub before updating it."
+        );
+        return;
+      }
+      var origin = currentOrigin();
+      saveToCloud(name, {
+        action: "update",
+        slug: origin.slug,
+        expected_sha256: origin.sha256
+      });
     },
     saveToCloud: function (name) {
-      emit("status", "Submitting…");
-      saveToCloud(name);
+      if (isHub()) {
+        setName(name);
+        projectReply("publish-open");
+      } else {
+        emit("status", "Submitting…");
+        saveToCloud(name);
+      }
     },
     requestList: function () {
       sendToParent({ type: "list" });
@@ -428,15 +1240,21 @@
     getName: function () {
       return iconName;
     },
-    setName: function (name) {
-      iconName = stripExt(name);
-    },
+    setName: setName,
     setLive: setLive,
     isLiveOn: function () {
       return liveOn;
     },
     getSizes: function () {
       return allowedSizes.slice();
+    },
+    isHub: isHub,
+    supportsProjects: supportsProjects,
+    getTermsUrl: function () {
+      return new URL(
+        "../terms-of-service",
+        new URL(iconApiUrl(), window.location.href)
+      ).href;
     },
     on: on
   };
@@ -452,15 +1270,38 @@
     }
 
     pskl.app.awtrixBridge = api;
+    originDescriptor = descriptor();
+    [
+      Events.HISTORY_STATE_SAVED,
+      Events.HISTORY_STATE_LOADED,
+      Events.PISKEL_RESET,
+      Events.PISKEL_DESCRIPTOR_UPDATED,
+      Events.FPS_CHANGED
+    ].forEach(function (event) {
+      $.subscribe(event, scheduleProjectChanged);
+    });
+    if (isHub()) {
+      document.documentElement.setAttribute("data-host", "hub");
+      var saveTool = document.querySelector('[data-setting="save"]');
+      if (saveTool) {
+        saveTool.setAttribute(
+          "title",
+          "Draft — save privately or download your drawing"
+        );
+      }
+    }
 
     // Live toggle lives in the transport dock, next to play/stop.
     var liveBtn = document.querySelector(".awtrix-live-toggle");
+    if (liveBtn && isHub()) {
+      liveBtn.hidden = true;
+    }
     if (liveBtn) {
       liveBtn.addEventListener("click", function () {
         setLive(!liveOn);
       });
     }
 
-    sendToParent({ type: "ready" });
+    sendToParent({ type: "ready", projectVersion: 1 });
   });
 })();

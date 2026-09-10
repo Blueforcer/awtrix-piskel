@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "name": "Studio QA Cloud",
+  "piskel": {
+    "modelVersion": 2,
+    "piskel": {
+      "name": "Studio QA Cloud",
+      "description": "",
+      "fps": 12,
+      "height": 8,
+      "width": 8,
+      "layers": [
+        "{\"name\":\"Layer 1\",\"opacity\":1,\"frameCount\":1,\"chunks\":[{\"layout\":[[0]],\"base64PNG\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAG0lEQVR4AeTKMQ0AAACDsGX+RSMBAfTuJyIBAAAA//8knOMsAAAABklEQVQDAApQABHf04VIAAAAAElFTkSuQmCC\"}]}"
+      ],
+      "hiddenFrames": []
+    }
+  },
+  "based_on": null,
+  "origin": null,
+  "original": null
+}

@@ -3,21 +3,28 @@
     <div class="settings-title">AWTRIX</div>
     <div class="settings-item">
       <label class="row" for="awtrix-name">Icon name</label>
-      <input id="awtrix-name" type="text" class="textfield" placeholder="icon name" spellcheck="false" autocomplete="off" />
+      <input id="awtrix-name" type="text" class="textfield" placeholder="e.g. Weather sun" aria-describedby="awtrix-name-hint" spellcheck="false" autocomplete="off" />
+      <p id="awtrix-name-hint">To publish, choose a descriptive name. A number alone is not a name.</p>
       <input type="button" class="button button-primary" id="awtrix-save" value="Save to AWTRIX" />
-      <input type="button" class="button" id="awtrix-save-cloud" value="Save to Cloud" />
-      <div class="save-status" id="awtrix-status"></div>
+      <input type="button" class="button" id="awtrix-save-draft" value="Save private draft" hidden />
+      <input type="button" class="button" id="awtrix-download" value="Download image" hidden />
+      <input type="button" class="button" id="awtrix-save-cloud" value="Publish in Hub" />
+      <input type="button" class="button" id="awtrix-update-cloud" value="Update my published icon" aria-describedby="awtrix-update-hint" hidden />
+      <p id="awtrix-update-hint" hidden>Only the owner can update this published icon. Its ID stays the same, so scripts using it receive your changes. Publish in Hub creates a separate variation.</p>
+      <div class="save-status" id="awtrix-status" role="status" aria-live="polite"></div>
     </div>
     <div class="settings-item awtrix-cloud-hint">
-      Save to Cloud publishes the icon to the shared icon database right away.
-      It needs an AWTRIX Hub account, so from the clock's own page it will point
-      you at the Hub editor instead.
+      <span class="awtrix-device-hint">Saving keeps your drawing on your AWTRIX. Publish in Hub shares it with everyone.</span>
+      <span class="awtrix-hub-hint" hidden>Drafts stay private and keep all your layers and frames. Download an image to use elsewhere, or publish when you are ready.</span>
+      By publishing, you confirm you can share this image and accept the <a class="awtrix-terms" href="/terms-of-service" target="_blank" rel="noopener noreferrer">Hub terms</a>.
     </div>
+    <div class="awtrix-open-section">
     <div class="settings-title">Open from AWTRIX</div>
     <div class="settings-item">
       <select id="awtrix-open-list">
         <option value="">Loading…</option>
       </select>
+    </div>
     </div>
   </div>
 </script>

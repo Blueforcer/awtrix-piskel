@@ -86,6 +86,11 @@
   };
 
   ns.StorageService.prototype.onSaveKey_ = function (charkey) {
+    var bridge = pskl.app.awtrixBridge;
+    if (bridge && bridge.supportsProjects()) {
+      bridge.saveProject();
+      return;
+    }
     if (pskl.app.isLoggedIn()) {
       this.saveToGallery(this.piskelController.getPiskel());
     } else if (pskl.utils.Environment.detectNodeWebkit()) {
