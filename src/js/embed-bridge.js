@@ -547,7 +547,7 @@
   // ---- submit the current sprite to the shared icon database ----------------
   // Hub publication always goes through the parent workspace. The direct
   // endpoint remains for legacy device/standalone embeddings without a broker.
-  var ICONAPI_DEFAULT = "https://hub.flows.blueforcer.de/icons/";
+  var ICONAPI_DEFAULT = "https://awtrix.de/icons/";
 
   function iconApiUrl() {
     var url = query("iconapi") || ICONAPI_DEFAULT;
