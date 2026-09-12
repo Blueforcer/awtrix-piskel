@@ -10,6 +10,8 @@
       rel="tooltip"
       data-placement="left"
       data-test-id="awtrix-play-toggle"
+      aria-pressed="false"
+      aria-label="Play or pause the animation"
     ></button>
     <button
       type="button"
@@ -19,6 +21,7 @@
       data-placement="left"
       aria-pressed="false"
       data-test-id="awtrix-live-toggle"
+      aria-label="Mirror the drawing on the AWTRIX display"
     ></button>
     <label
       class="awtrix-fps"
@@ -34,6 +37,7 @@
         max="24"
         step="1"
         data-test-id="fps-input"
+        aria-label="Animation frames per second"
       >
       <span class="awtrix-fps-unit">fps</span>
     </label>
@@ -47,6 +51,9 @@
     rel="tooltip"
     data-placement="left"
     data-test-id="onion-skin-toggle-button"
+    role="button"
+    tabindex="0"
+    aria-label="Show neighbouring animation frames"
   ></div>
 
   <div
@@ -55,6 +62,9 @@
     title="<span class='highlight'>PREFERENCES</span></br>"
     rel="tooltip"
     data-placement="left"
+    role="button"
+    tabindex="0"
+    aria-label="Preferences"
   ></div>
 
   <div
@@ -63,6 +73,9 @@
     title="<span class='highlight'>RESIZE</span></br>Resize the drawing area"
     rel="tooltip"
     data-placement="left"
+    role="button"
+    tabindex="0"
+    aria-label="Resize the drawing"
   ></div>
 
   <div
@@ -71,6 +84,9 @@
     title="<span class='highlight'>AWTRIX</span></br>Save to / open from the clock, live preview"
     rel="tooltip"
     data-placement="left"
+    role="button"
+    tabindex="0"
+    aria-label="Save, open and preview on AWTRIX"
   ></div>
 
   <div
@@ -79,5 +95,8 @@
     title="<span class='highlight'>EXPORT</span></br>Export as Image, as Spritesheet<br/>or as Animated GIF"
     rel="tooltip"
     data-placement="left"
+    role="button"
+    tabindex="0"
+    aria-label="Export the icon"
   ></div>
 </div>

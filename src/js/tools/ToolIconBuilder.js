@@ -9,6 +9,7 @@
     return pskl.utils.Template.replace(tpl, {
       cssclass: ["tool-icon", "icon-" + tool.toolId].join(" "),
       toolid: tool.toolId,
+      label: tool.getHelpText(),
       title: this.getTooltipText(tool),
       tooltipposition: tooltipPosition
     });

@@ -7,26 +7,44 @@
         rel="tooltip"
         data-placement="top"
         data-test-id="pen-size-picker"
+        role="radiogroup"
+        aria-label="Pen size"
       >
         <div
           class="pen-size-option size-picker-option"
           data-size="1"
           data-test-id="pen-size-1"
+          role="radio"
+          tabindex="0"
+          aria-checked="false"
+          aria-label="1 pixel pen"
         ></div>
         <div
           class="pen-size-option size-picker-option"
           data-size="2"
           data-test-id="pen-size-2"
+          role="radio"
+          tabindex="-1"
+          aria-checked="false"
+          aria-label="2 pixel pen"
         ></div>
         <div
           class="pen-size-option size-picker-option"
           data-size="3"
           data-test-id="pen-size-3"
+          role="radio"
+          tabindex="-1"
+          aria-checked="false"
+          aria-label="3 pixel pen"
         ></div>
         <div
           class="pen-size-option size-picker-option"
           data-size="4"
           data-test-id="pen-size-4"
+          role="radio"
+          tabindex="-1"
+          aria-checked="false"
+          aria-label="4 pixel pen"
         ></div>
       </div>
       <ul
@@ -46,6 +64,7 @@
             class="color"
             type="text"
             data-test-id="primary-color-picker"
+            aria-label="Primary drawing color"
           >
         </div>
         <div
@@ -59,6 +78,7 @@
             class="secondary-color-picker color"
             type="text"
             data-test-id="secondary-color-picker"
+            aria-label="Secondary drawing color"
           >
         </div>
         <div
@@ -67,6 +87,9 @@
           title="Swap colors (X)"
           rel="tooltip"
           data-placement="right"
+          role="button"
+          tabindex="0"
+          aria-label="Swap primary and secondary colors"
         ></div>
       </div>
     </div>
@@ -76,6 +99,6 @@
 
   <!-- Drawing tool icon-button -->
   <script type="text/template" id="drawingTool-item-template">
-    <li rel="tooltip" data-placement="{{tooltipposition}}" class="{{cssclass}}" data-tool-id="{{toolid}}" data-test-id="tool-{{toolid}}" title="{{title}}"></li>
+    <li rel="tooltip" data-placement="{{tooltipposition}}" class="{{cssclass}}" data-tool-id="{{toolid}}" data-test-id="tool-{{toolid}}" title="{{title}}" role="button" tabindex="0" aria-label="{{label}}" aria-pressed="false"></li>
   </script>
 </div>

@@ -35,7 +35,13 @@
       </div>
 
       <div class='column main-column'>
-        <div id="drawing-canvas-container" class="drawing-canvas-container canvas-container" data-test-id="drawing-canvas">
+        <p id="drawing-canvas-help" class="accessibility-only">
+          Pixel drawing canvas. Use a mouse or touch to draw. Choose tools with
+          the toolbar or their keyboard shortcuts. Undo and redo are available
+          from the keyboard shortcuts panel.
+        </p>
+        <div id="drawing-canvas-container" class="drawing-canvas-container canvas-container" data-test-id="drawing-canvas"
+             role="img" tabindex="0" aria-label="Pixel drawing canvas" aria-describedby="drawing-canvas-help">
           <div class="canvas-background"></div>
         </div>
       </div>
@@ -48,6 +54,7 @@
         <div class="pull-bottom cursor-coordinates"></div>
       </div>
     </div>
+    <div id="editor-accessibility-status" class="accessibility-only" role="status" aria-live="polite"></div>
 
     <div id="application-action-section" data-pskl-controller="settings" class="sticky-section right-sticky-section">
       <div class="sticky-section-wrap">

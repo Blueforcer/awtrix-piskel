@@ -80,10 +80,26 @@
   overflow-x: hidden;
   background: var(--card, #161b22);
   border-right: 1px solid var(--awx-hairline);
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--muted, #7d8590) transparent;
 }
 #tool-section::-webkit-scrollbar {
-  display: none;
+  width: 6px;
+}
+#tool-section::-webkit-scrollbar-thumb {
+  background: var(--muted, #7d8590);
+  border-radius: 6px;
+}
+.accessibility-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 /* Kill the table-based vertical centering — the rail is a top-down list. */
 #tool-section .sticky-section-wrap,

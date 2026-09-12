@@ -264,6 +264,9 @@ exports.scripts = [
   // Bonus features !!
   "js/snippets.js",
 
+  // Keyboard and screen-reader semantics for the canvas and icon toolbars
+  "js/accessibility.js",
+
   // AWTRIX NG embed layer
   "js/embed-bridge.js"
 ];
