@@ -17,7 +17,12 @@
   box-shadow:
     inset 0 1px 0 0 #0d0e0f,
     inset 0 -1px 0 0 #3a3d42;
-  outline: none; /* no focus outline */
+  outline: none;
+}
+
+.color-picker-slider input[type="range"]:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
 }
 
 /* thumb */
