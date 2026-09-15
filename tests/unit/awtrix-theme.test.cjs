@@ -96,7 +96,10 @@ test("light theme mirrors the AWTRIX host palette", () => {
 test("interactive states consume theme tokens instead of legacy blue colours", () => {
   assert.match(source, /:focus-visible/);
   assert.match(source, /var\(--button-fg\)/);
-  assert.match(source, /\.preview-tile\.selected::after[\s\S]*border-left-color: var\(--acc\)/);
+  assert.match(
+    source,
+    /\.preview-tile\.selected::after[\s\S]*border-left-color: var\(--acc\)/
+  );
   assert.doesNotMatch(
     source,
     /#(?:0d1117|161b22|1c2129|2d333b|e6edf3|8b949e|58a6ff|1f6feb|0969da|30363d|484f58)/i
