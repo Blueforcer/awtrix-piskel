@@ -1,43 +1,62 @@
 /*
- * AWTRIX NG theme skin for the embedded Piskel fork.
+ * AWTRIX theme skin for the Piskel fork embedded by the Hub and device WebUI.
  *
  * Add this file LAST in `src/piskel-style-list.js` so it wins over Piskel's own
  * (hard-coded) colours, and make sure your Vite config does NOT run the
  * `var(--highlight-color)` -> `gold` substitution on it (that plugin only needs
- * to touch the original variables.css). The AWTRIX web UI sets a `data-theme`
- * attribute on <html> ("dark" | "light") via the query string and postMessage;
- * these rules key off it.
+ * to touch the original variables.css). Both hosts set a `data-theme` attribute
+ * on <html> ("dark" | "light") via the query string and postMessage; these rules
+ * key off it.
  *
  * Piskel has no design-token layer, so this is a pragmatic override of the main
- * surfaces rather than an exhaustive reskin — extend the selectors to taste. The
- * palette below is AWTRIX NG's (GitHub-Primer-derived) token set, verbatim from
- * webui/index.html so the embed matches the host exactly.
+ * surfaces rather than an exhaustive reskin. The palette below is shared with
+ * the Hub and AWTRIX NG WebUI so the editor feels native in either embed.
  */
 
 :root[data-theme="dark"] {
-  --bg: #0d1117;
-  --card: #161b22;
-  --card2: #1c2129;
-  --border: #2d333b;
-  --fg: #e6edf3;
-  --dim: #8b949e;
-  --acc: #58a6ff;
-  --pri: #1f6feb;
-  --highlight-color: #58a6ff; /* Piskel accent */
-  --awx-letterbox: #1c2129; /* canvas letterbox — read by FrameRenderer */
+  --bg: #171717;
+  --card: #222221;
+  --card2: #292927;
+  --border: #373632;
+  --brd2: #302f2b;
+  --fg: #f3f1ec;
+  --dim: #a6a198;
+  --acc: #f5a568;
+  --pri: #f5a568;
+  --ok: #8fbf72;
+  --err: #ff9d90;
+  --warn: #ffb65c;
+  --con: #10100f;
+  --confg: #f3f1ec;
+  --sh: #0008;
+  --trk: #514e47;
+  --field: #1c1c1b;
+  --button-fg: #23170e;
+  --highlight-color: #f5a568;
+  --awx-letterbox: #10100f;
   color-scheme: dark;
 }
 :root[data-theme="light"] {
-  --bg: #ffffff;
-  --card: #f6f8fa;
-  --card2: #eaeef2;
-  --border: #d0d7de;
-  --fg: #1f2328;
-  --dim: #59636e;
-  --acc: #0969da;
-  --pri: #0969da;
-  --highlight-color: #0969da;
-  --awx-letterbox: #eaeef2; /* canvas letterbox — read by FrameRenderer */
+  --bg: #f5f4f1;
+  --card: #ffffff;
+  --card2: #f0eee9;
+  --border: #e2dfd8;
+  --brd2: #ebe8e2;
+  --fg: #242321;
+  --dim: #706c65;
+  --acc: #ac470f;
+  --pri: #ac470f;
+  --ok: #3d762e;
+  --err: #b3261e;
+  --warn: #945813;
+  --con: #181817;
+  --confg: #f7f3ec;
+  --sh: #342a201f;
+  --trk: #c8c3b9;
+  --field: #fcfbf9;
+  --button-fg: #ffffff;
+  --highlight-color: #ac470f;
+  --awx-letterbox: #181817;
   color-scheme: light;
 }
 
@@ -68,6 +87,11 @@ html[data-theme] .preview-list {
   border-color: var(--border);
 }
 
+html[data-theme] #drawer-container,
+html[data-theme] .settings {
+  box-shadow: 0 14px 40px var(--sh);
+}
+
 html[data-theme] .tool-icon:hover,
 html[data-theme] .preview-tile:hover {
   background-color: var(--card2);
@@ -77,10 +101,10 @@ html[data-theme] .preview-tile:hover {
    chip behind them even in the light theme. */
 html[data-theme="light"] .tool-icon,
 html[data-theme="light"] #application-action-section {
-  background-color: #30363d;
+  background-color: var(--con);
 }
 html[data-theme="light"] .tool-icon:hover {
-  background-color: #484f58;
+  background-color: color-mix(in srgb, var(--confg) 12%, var(--con));
 }
 
 /* Selected tool / active state --------------------------------------------- */
@@ -88,6 +112,11 @@ html[data-theme] .tool-icon.selected,
 html[data-theme] .selected {
   color: var(--acc);
   box-shadow: inset 0 0 0 1px var(--acc);
+}
+
+html[data-theme] :is(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: 2px;
 }
 
 /* Text, labels, secondary text --------------------------------------------- */
@@ -103,16 +132,23 @@ html[data-theme] input,
 html[data-theme] select,
 html[data-theme] textarea,
 html[data-theme] button {
-  background-color: var(--bg);
+  background-color: var(--field);
   color: var(--fg);
   border: 1px solid var(--border);
   border-radius: 7px;
+}
+html[data-theme] button:hover {
+  border-color: var(--trk);
 }
 html[data-theme] button.button-primary,
 html[data-theme] .button-primary {
   background: var(--pri);
   border-color: var(--pri);
-  color: #fff;
+  color: var(--button-fg);
+}
+html[data-theme] button.button-primary:hover,
+html[data-theme] .button-primary:hover {
+  filter: brightness(1.06);
 }
 
 /* The drawing area sits on true black on the clock; keep the canvas backdrop

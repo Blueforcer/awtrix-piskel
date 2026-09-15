@@ -26,7 +26,7 @@
 :root {
   --awx-rail-w: 56px;
   --awx-dock-h: 116px;
-  --awx-hairline: var(--border, #2d333b);
+  --awx-hairline: var(--border, #373632);
   /* Monitor slot, and the panel built around it: the monitor plus its 1px
      border on each side, the panel padding and the panel's left hairline. The
      frames strip subtracts this so its last tiles never end up underneath the
@@ -78,16 +78,16 @@
   max-width: none;
   overflow-y: auto;
   overflow-x: hidden;
-  background: var(--card, #161b22);
+  background: var(--card, #222221);
   border-right: 1px solid var(--awx-hairline);
   scrollbar-width: thin;
-  scrollbar-color: var(--muted, #7d8590) transparent;
+  scrollbar-color: var(--dim, #a6a198) transparent;
 }
 #tool-section::-webkit-scrollbar {
   width: 6px;
 }
 #tool-section::-webkit-scrollbar-thumb {
-  background: var(--muted, #7d8590);
+  background: var(--dim, #a6a198);
   border-radius: 6px;
 }
 .accessibility-only {
@@ -138,7 +138,7 @@
   margin: 12px 0 0;
   padding: 8px 0 10px;
   width: 100%;
-  background: var(--card, #161b22);
+  background: var(--card, #222221);
   border-top: 1px solid var(--awx-hairline);
   display: flex;
   flex-direction: column;
@@ -164,7 +164,7 @@
   top: 0;
   bottom: var(--awx-dock-h);
   width: var(--awx-rail-w);
-  background: var(--card, #161b22);
+  background: var(--card, #222221);
   border-left: 1px solid var(--awx-hairline);
 }
 #application-action-section .sticky-section-wrap {
@@ -217,13 +217,13 @@
   height: 100%;
   max-height: none;
   border-radius: 0;
-  background: var(--card, #161b22);
+  background: var(--card, #222221);
   border-left: 1px solid var(--awx-hairline);
   box-shadow: -12px 0 32px #0006;
 }
 .right-sticky-section .tool-icon.has-expanded-drawer {
-  background-color: var(--card2, #1c2129);
-  border-left: 3px solid var(--acc, #58a6ff);
+  background-color: var(--card2, #292927);
+  border-left: 3px solid var(--acc, #f5a568);
   padding-right: 0;
 }
 
@@ -243,7 +243,7 @@
   height: var(--awx-dock-h);
   width: auto;
   padding: 0;
-  background: var(--card, #161b22);
+  background: var(--card, #222221);
   border-top: 1px solid var(--awx-hairline);
   z-index: 900;
 }
@@ -320,9 +320,9 @@
   align-items: center;
   justify-content: center;
   padding: 0 var(--awx-monitor-pad);
-  background: var(--card, #161b22);
+  background: var(--card, #222221);
   border-left: 1px solid var(--awx-hairline);
-  box-shadow: inset 1px 0 0 var(--bg, #0d1117);
+  box-shadow: inset 1px 0 0 var(--bg, #171717);
 }
 
 /* Monitor: the running animation in a recessed display frame. Sized to nearly
@@ -339,11 +339,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--awx-letterbox, #1c2129);
+  background: var(--awx-letterbox, #10100f);
   border: 1px solid var(--awx-hairline);
   border-radius: 8px;
   box-shadow:
-    inset 0 0 0 1px var(--bg, #0d1117),
+    inset 0 0 0 1px var(--bg, #171717),
     inset 0 2px 8px #0007;
 }
 .right-column .minimap-container #animated-preview-canvas-container {
@@ -367,9 +367,9 @@
   height: 40px;
   border: none;
   border-radius: 50%;
-  background: var(--card2, #1c2129);
+  background: var(--card2, #292927);
   box-shadow: inset 0 0 0 1px var(--awx-hairline);
-  color: var(--fg, #e6edf3);
+  color: var(--fg, #f3f1ec);
   font-size: 14px;
   line-height: 40px;
   cursor: pointer;
@@ -385,18 +385,18 @@
   left: 1px; /* optically center the triangle */
 }
 .awtrix-play-toggle.playing {
-  background: var(--pri, #1f6feb);
+  background: var(--pri, #f5a568);
   color: #fff;
   box-shadow:
-    inset 0 0 0 1px var(--pri, #1f6feb),
-    0 0 0 4px color-mix(in srgb, var(--pri, #1f6feb) 22%, transparent);
+    inset 0 0 0 1px var(--pri, #f5a568),
+    0 0 0 4px color-mix(in srgb, var(--pri, #f5a568) 22%, transparent);
 }
 .awtrix-play-toggle.playing::before {
   content: "⏸";
   left: 0;
 }
 .awtrix-play-toggle:hover {
-  color: var(--acc, #58a6ff);
+  color: var(--acc, #f5a568);
 }
 .awtrix-play-toggle.playing:hover {
   color: #fff;
@@ -410,7 +410,7 @@
   height: 40px;
   border: none;
   border-radius: 50%;
-  background: var(--card2, #1c2129);
+  background: var(--card2, #292927);
   box-shadow: inset 0 0 0 1px var(--awx-hairline);
   cursor: pointer;
   padding: 0;
@@ -431,23 +431,23 @@
   );
   background-size: 4px 5px;
   background-position: 0 0;
-  color: var(--dim, #8b949e);
+  color: var(--dim, #a6a198);
   opacity: 0.8;
 }
 .awtrix-live-toggle:hover::before {
-  color: var(--acc, #58a6ff);
+  color: var(--acc, #f5a568);
 }
 .awtrix-live-toggle.on {
-  background: color-mix(in srgb, var(--ok, #3fb950) 18%, var(--card2, #1c2129));
+  background: color-mix(in srgb, var(--ok, #8fbf72) 18%, var(--card2, #292927));
   box-shadow:
-    inset 0 0 0 1px var(--ok, #3fb950),
-    0 0 0 4px color-mix(in srgb, var(--ok, #3fb950) 22%, transparent);
+    inset 0 0 0 1px var(--ok, #8fbf72),
+    0 0 0 4px color-mix(in srgb, var(--ok, #8fbf72) 22%, transparent);
 }
 .awtrix-live-toggle.on::before {
-  color: var(--ok, #3fb950);
+  color: var(--ok, #8fbf72);
   opacity: 1;
   filter: drop-shadow(
-    0 0 2px color-mix(in srgb, var(--ok, #3fb950) 70%, transparent)
+    0 0 2px color-mix(in srgb, var(--ok, #8fbf72) 70%, transparent)
   );
 }
 
@@ -467,9 +467,9 @@
   padding: 0 2px;
   border: none;
   border-radius: 6px;
-  background: var(--card2, #1c2129);
+  background: var(--card2, #292927);
   box-shadow: inset 0 0 0 1px var(--awx-hairline);
-  color: var(--fg, #e6edf3);
+  color: var(--fg, #f3f1ec);
   font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
   font-size: 14px;
   font-weight: 600;
@@ -485,26 +485,26 @@
 }
 .input-fps:focus {
   outline: none;
-  box-shadow: inset 0 0 0 1px var(--acc, #58a6ff);
+  box-shadow: inset 0 0 0 1px var(--acc, #f5a568);
 }
 .awtrix-fps-unit {
   font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--dim, #8b949e);
+  color: var(--dim, #a6a198);
 }
 
 /* Onion-skin view toggle in the right rail. */
 .awtrix-onion-toggle {
-  color: var(--dim, #8b949e);
+  color: var(--dim, #a6a198);
   font-size: 22px;
   line-height: 46px;
   text-align: center;
   cursor: pointer;
 }
 .awtrix-onion-toggle.preview-toggle-onion-skin-enabled {
-  color: var(--acc, #58a6ff);
-  box-shadow: inset 0 0 0 1px var(--acc, #58a6ff);
+  color: var(--acc, #f5a568);
+  box-shadow: inset 0 0 0 1px var(--acc, #f5a568);
 }
 .cheatsheet-link,
 .performance-link {
