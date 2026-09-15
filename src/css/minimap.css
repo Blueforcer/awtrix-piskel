@@ -1,6 +1,6 @@
 .minimap-crop-frame {
   position: absolute;
-  border: 2px solid gold;
+  border: 2px solid var(--highlight-color);
   z-index: 100;
   box-sizing: border-box;
   -moz-box-sizing: border-box;

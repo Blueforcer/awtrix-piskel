@@ -131,7 +131,7 @@
 }
 
 .grid-colors-item.selected {
-  border-color: gold;
+  border-color: var(--highlight-color);
 }
 
 .settings-section-preferences > .settings-title {

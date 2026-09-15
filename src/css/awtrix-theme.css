@@ -2,11 +2,9 @@
  * AWTRIX theme skin for the Piskel fork embedded by the Hub and device WebUI.
  *
  * Add this file LAST in `src/piskel-style-list.js` so it wins over Piskel's own
- * (hard-coded) colours, and make sure your Vite config does NOT run the
- * `var(--highlight-color)` -> `gold` substitution on it (that plugin only needs
- * to touch the original variables.css). Both hosts set a `data-theme` attribute
- * on <html> ("dark" | "light") via the query string and postMessage; these rules
- * key off it.
+ * (hard-coded) colours. Both hosts set a `data-theme` attribute on <html>
+ * ("dark" | "light") via the query string and postMessage; these rules key off
+ * it.
  *
  * Piskel has no design-token layer, so this is a pragmatic override of the main
  * surfaces rather than an exhaustive reskin. The palette below is shared with
@@ -111,7 +109,17 @@ html[data-theme="light"] .tool-icon:hover {
 html[data-theme] .tool-icon.selected,
 html[data-theme] .selected {
   color: var(--acc);
+  border-color: var(--acc);
   box-shadow: inset 0 0 0 1px var(--acc);
+}
+
+html[data-theme] .preview-tile.selected::after {
+  border-left-color: var(--acc);
+}
+
+html[data-theme] .preview-tile .tile-count.toggled {
+  background-color: var(--acc);
+  color: var(--button-fg);
 }
 
 html[data-theme] :is(a, button, input, select, textarea):focus-visible {

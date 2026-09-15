@@ -127,7 +127,7 @@
 }
 
 /**
- * If the icon represents an enabled state, the border should always be gold.
+ * If the icon represents an enabled state, use the current theme accent.
  */
 .preview-contextual-action-enabled {
   color: var(--highlight-color);
@@ -180,8 +180,8 @@
 
 .preview-drop-down .size-button-selected {
   opacity: 1;
-  color: gold;
-  border-color: gold;
+  color: var(--highlight-color);
+  border-color: var(--highlight-color);
   z-index: 5;
 }
 

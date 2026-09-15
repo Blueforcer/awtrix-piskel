@@ -7,6 +7,27 @@ const source = fs.readFileSync(
   path.join(__dirname, "../../src/css/awtrix-theme.css"),
   "utf8"
 );
+const concatPlugin = fs.readFileSync(
+  path.join(__dirname, "../../vite-plugins/concat-scripts.js"),
+  "utf8"
+);
+const cssPlugin = fs.readFileSync(
+  path.join(__dirname, "../../vite-plugins/css-replace.js"),
+  "utf8"
+);
+const componentStyles = [
+  "dialogs-import.css",
+  "dialogs-browse-backups.css",
+  "frames-list.css",
+  "minimap.css",
+  "settings-application.css",
+  "toolbox-animated-preview.css",
+  "transformations.css"
+]
+  .map((file) =>
+    fs.readFileSync(path.join(__dirname, "../../src/css", file), "utf8")
+  )
+  .join("\n");
 
 function themeTokens(theme) {
   const block = source.match(
@@ -75,8 +96,16 @@ test("light theme mirrors the AWTRIX host palette", () => {
 test("interactive states consume theme tokens instead of legacy blue colours", () => {
   assert.match(source, /:focus-visible/);
   assert.match(source, /var\(--button-fg\)/);
+  assert.match(source, /\.preview-tile\.selected::after[\s\S]*border-left-color: var\(--acc\)/);
   assert.doesNotMatch(
     source,
     /#(?:0d1117|161b22|1c2129|2d333b|e6edf3|8b949e|58a6ff|1f6feb|0969da|30363d|484f58)/i
   );
+});
+
+test("production CSS preserves the runtime theme accent", () => {
+  assert.match(concatPlugin, /source: concatenatedCss/);
+  assert.doesNotMatch(concatPlugin, /replace\(\/var\\\(--highlight-color/);
+  assert.doesNotMatch(cssPlugin, /replace\(\/var\\\(--highlight-color/);
+  assert.doesNotMatch(componentStyles, /:\s*gold\s*;/i);
 });
