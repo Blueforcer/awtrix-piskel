@@ -34,10 +34,13 @@ Modifications relative to upstream (per the Apache-2.0 notice requirement):
 - **Frames strip**: tiles use a whole-number zoom so every sprite pixel is
   equally large; a wide sprite widens its tile up to 128px instead of dropping
   to an uneven scale (`FramesListController.calculateZoom_`).
-- **Live preview**: every update fits one AWTRIX notification body. A still
-  frame goes as raw RGB or, when that is too large, as a one-frame GIF; an
-  animation too large for one body sends its current frame; when nothing fits,
-  the editor tells the host with `live-too-large` (`embed-bridge.js`).
+- **Live preview**: for hosts whose `config` message says `protocol: 2`, every
+  update fits one AWTRIX notification body. A still frame goes as raw RGB or,
+  when that is too large, as a one-frame GIF; an animation too large for one
+  body sends its current frame with `still: true`; when nothing fits, the
+  editor sends `live-too-large {w, h, reason: "size" | "colors"}` instead.
+  Hosts without a protocol (AWTRIX web UIs already in the field) keep getting
+  the raw bitmap, and show the device's refusal as before (`embed-bridge.js`).
 - **Theming**: light/dark skin driven by the host via `?theme=` / postMessage
   (`data-theme` on `<html>`), including the canvas letterbox painted by
   `FrameRenderer` (`--awx-letterbox`).

@@ -7,6 +7,7 @@
  * postMessage. Every message carries { ns: 'awtrix', type, ... }.
  *
  *   Editor -> AWTRIX:  ready | save | list | load | live | live-too-large | live-off
+ *   (live-too-large and live.still only for hosts whose config says protocol 2)
  *   AWTRIX -> Editor:  theme | config | list-result | load-result | save-result
  *
  * The Hub owns private project storage and publication through project-*
@@ -25,6 +26,9 @@
   var parentOrigin = "*"; // tightened to the real parent origin on first inbound message
   var allowedSizes = ["8x8", "32x8"];
   var maxSize = null;
+  // Version of the message contract the host understands, from its config
+  // message. 2 = live-too-large, and the still flag on live messages.
+  var hostProtocol = 1;
   var publishViaParent = query("host") === "hub";
   var basedOn = null;
   var iconOrigin = null;
@@ -1003,19 +1007,32 @@
 
   // The current frame, as a base64 bitmap (the AWTRIX `db` command's string
   // form, exact and cheapest to draw) or, when that is too large, as a one-frame
-  // GIF, which pixel art shrinks far below raw RGB. Null when neither fits.
-  function stillLive() {
+  // GIF, which pixel art shrinks far below raw RGB. When neither fits, the host
+  // hears live-too-large with the reason: too many pixels for one body, or too
+  // many colours for the exact-palette GIF.
+  //
+  // `fromAnimation` marks a frame that stands in for an animation too large to
+  // send whole, so the host can say why the display does not animate.
+  //
+  // Hosts before protocol 2 (AWTRIX web UIs already in the field load this same
+  // editor) get what they always got: the bitmap, whatever its size. Their
+  // device refuses an oversized body, and they show that refusal.
+  function stillLive(fromAnimation) {
     var pc = pskl.app.piskelController;
     var canvas = pc.renderFrameAt(pc.getCurrentFrameIndex(), true);
     var bitmap = frameToBase64Rgb(canvas);
-    if (fitsLive(bitmap)) {
-      return {
-        type: "live",
-        mode: "bitmap",
-        w: canvas.width,
-        h: canvas.height,
-        dataBase64: bitmap
-      };
+    var still = fromAnimation && hostProtocol >= 2;
+    if (hostProtocol < 2 || fitsLive(bitmap)) {
+      return withStill(
+        {
+          type: "live",
+          mode: "bitmap",
+          w: canvas.width,
+          h: canvas.height,
+          dataBase64: bitmap
+        },
+        still
+      );
     }
     var gif = pskl.utils.GifEncoder.encodeBase64({
       width: canvas.width,
@@ -1024,24 +1041,24 @@
       delayMs: 1000,
       repeat: 0
     });
-    return gif && fitsLive(gif)
-      ? { type: "live", mode: "gif", mime: "image/gif", dataBase64: gif }
-      : null;
-  }
-
-  // When nothing fits, nothing is sent: the host hears live-too-large instead
-  // and tells the user.
-  function sendLive(message) {
-    if (message) {
-      sendToParent(message);
-      return;
+    if (gif && fitsLive(gif)) {
+      return withStill(
+        { type: "live", mode: "gif", mime: "image/gif", dataBase64: gif },
+        still
+      );
     }
-    var pc = pskl.app.piskelController;
-    sendToParent({
+    return {
       type: "live-too-large",
-      w: pc.getWidth(),
-      h: pc.getHeight()
-    });
+      w: canvas.width,
+      h: canvas.height,
+      reason: gif ? "size" : "colors"
+    };
+  }
+  function withStill(message, still) {
+    if (still) {
+      message.still = true;
+    }
+    return message;
   }
 
   // A running animation goes as a looping GIF, which the device animates on its
@@ -1063,7 +1080,7 @@
             if (!liveOn || sequence !== liveSequence) {
               return;
             }
-            sendLive(
+            sendToParent(
               fitsLive(b64)
                 ? {
                     type: "live",
@@ -1071,12 +1088,12 @@
                     mime: "image/gif",
                     dataBase64: b64
                   }
-                : stillLive()
+                : stillLive(true)
             );
           }
         );
       } else {
-        sendLive(stillLive());
+        sendToParent(stillLive(false));
       }
     } catch (_e) {
       /* editor not ready yet */
@@ -1154,6 +1171,9 @@
         draftViaParent =
           isHub() || m.draftViaParent === true || m.projectViaParent === true;
         emit("config");
+        if (Number.isInteger(m.protocol) && m.protocol > 0) {
+          hostProtocol = m.protocol;
+        }
         var presets = Array.isArray(m.sizes) ? readSizes(m.sizes) : [];
         if (presets.length) {
           allowedSizes = presets;

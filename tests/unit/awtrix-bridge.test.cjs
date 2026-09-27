@@ -537,32 +537,68 @@ test("Ctrl+S delegates to the Hub draft broker, never legacy IndexedDB", () => {
   assert.equal(app.sent.filter((m) => m.type === "project-save").length, 1);
 });
 
-test("every host mirrors only what fits one notification", () => {
+test("every host mirrors only what fits one notification, and says when an animation stands still", () => {
   const hub = boot("hub"),
     device = boot();
   for (const app of [hub, device]) {
     app.setExport("A".repeat(8000));
   }
-  hub.receive({ type: "config", host: "hub", publishViaParent: true });
+  hub.receive({
+    type: "config",
+    host: "hub",
+    publishViaParent: true,
+    protocol: 2
+  });
   assert.equal(hub.liveButton.hidden, true);
-  device.receive({ type: "config", publishViaParent: true });
+  device.receive({ type: "config", publishViaParent: true, protocol: 2 });
   assert.equal(device.sent.filter((m) => m.type === "live").length, 0);
   device.api.setLive(true);
   for (const app of [hub, device]) {
     const live = app.sent.findLast((m) => m.type === "live");
     assert.equal(live.mode, "bitmap");
     assert.equal(live.dataBase64.length, 8 * 8 * 4);
+    assert.equal(live.still, true);
   }
   hub.setExport("R0lGODlh");
   hub.fps(8);
   hub.tick();
   const animation = hub.sent.findLast((m) => m.type === "live");
-  assert.deepEqual([animation.mode, animation.dataBase64], ["gif", "R0lGODlh"]);
+  assert.deepEqual(
+    [animation.mode, animation.dataBase64, animation.still],
+    ["gif", "R0lGODlh", undefined]
+  );
+  hub.pause(true);
+  hub.tick();
+  assert.equal(hub.sent.findLast((m) => m.type === "live").still, undefined);
+});
+
+test("hosts before protocol 2 keep getting the bitmap, whatever its size", () => {
+  const app = boot("device", "&sizes=8x8,32x8,128x32");
+  app.receive({ type: "config", sizes: ["8x8", "32x8", "128x32"] });
+  app.pause(true);
+  app.sprite(128, 32);
+  app.setStillGif(null);
+  app.api.setLive(true);
+  const still = app.sent.findLast((m) => m.type.startsWith("live"));
+  assert.deepEqual(
+    [still.type, still.mode, still.dataBase64.length, still.still],
+    ["live", "bitmap", 128 * 32 * 4, undefined]
+  );
+  app.setExport("A".repeat(8000));
+  app.pause(false);
+  app.tick();
+  const animation = app.sent.findLast((m) => m.type.startsWith("live"));
+  assert.deepEqual(
+    [animation.type, animation.mode, animation.still],
+    ["live", "bitmap", undefined]
+  );
+  assert.equal(app.sent.filter((m) => m.type === "live-too-large").length, 0);
 });
 
 test("a large still frame goes as a one-frame GIF, or not at all", () => {
   const app = boot("device", "&max=128x32");
   const lastLive = () => app.sent.findLast((m) => m.type.startsWith("live"));
+  app.receive({ type: "config", protocol: 2 });
   app.pause(true);
   app.sprite(128, 32);
   app.api.setLive(true);
@@ -579,7 +615,10 @@ test("a large still frame goes as a one-frame GIF, or not at all", () => {
     [128, 32, 1]
   );
   const mirrored = app.sent.filter((m) => m.type === "live").length;
-  for (const gif of [null, "A".repeat(7001)]) {
+  for (const [gif, reason] of [
+    [null, "colors"],
+    ["A".repeat(7001), "size"]
+  ]) {
     app.setStillGif(gif);
     app.change(String(gif));
     app.tick();
@@ -587,7 +626,8 @@ test("a large still frame goes as a one-frame GIF, or not at all", () => {
       ns: "awtrix",
       type: "live-too-large",
       w: 128,
-      h: 32
+      h: 32,
+      reason
     });
   }
   assert.equal(app.sent.filter((m) => m.type === "live").length, mirrored);

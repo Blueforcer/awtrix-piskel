@@ -21,15 +21,19 @@
       this.shortcutService.init();
 
       // AWTRIX NG: the editor targets LED matrices, so a new sprite starts at a
-      // matrix size (32×8 by default, or the first entry of ?sizes=WxH,…) rather
-      // than Piskel's stored default.
+      // matrix size (32×8 by default, or the first usable entry of
+      // ?sizes=WxH,…) rather than Piskel's stored default. Usable means what
+      // embed-bridge.js accepts as a preset: 1–3 digits each, at least 1.
       var size = { width: 32, height: 8 };
       var sizesParam = /[?&]sizes=([^&]*)/.exec(window.location.search);
-      if (sizesParam) {
-        var first = decodeURIComponent(sizesParam[1]).split(",")[0];
-        var wh = /^(\d+)x(\d+)$/.exec(first.trim());
-        if (wh) {
-          size = { width: parseInt(wh[1], 10), height: parseInt(wh[2], 10) };
+      var entries = sizesParam
+        ? decodeURIComponent(sizesParam[1]).split(",")
+        : [];
+      for (var i = 0; i < entries.length; i++) {
+        var wh = /^(\d{1,3})x(\d{1,3})$/.exec(entries[i].trim());
+        if (wh && Number(wh[1]) >= 1 && Number(wh[2]) >= 1) {
+          size = { width: Number(wh[1]), height: Number(wh[2]) };
+          break;
         }
       }
       var fps = Constants.DEFAULT.FPS;
