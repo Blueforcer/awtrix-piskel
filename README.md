@@ -24,8 +24,20 @@ Modifications relative to upstream (per the Apache-2.0 notice requirement):
 - **AWTRIX panel**: the Save icon opens Save-to-clock / Open-from-clock /
   Live-preview (`controller/settings/AwtrixController.js`,
   `templates/settings/awtrix.html`); Piskel's save and import drawers are
-  removed. Sprites start at 32×8 and the resize panel is two fixed matrix-size
-  buttons, 8×8 and 32×8.
+  removed. A new sprite starts at the host's first size (`?sizes=`, 32×8
+  without one).
+- **Matrix sizes**: the host names its sizes (`?sizes=8x8,32x8` or the
+  `config` message) and may allow any other up to a maximum (`?max=128x32`).
+  The resize panel shows each size as a button plus, with a maximum, a
+  width × height of your own; new and loaded drafts are held to the same rule
+  (`controller/settings/resize/ResizeController.js`, `embed-bridge.js`).
+- **Frames strip**: tiles use a whole-number zoom so every sprite pixel is
+  equally large; a wide sprite widens its tile up to 128px instead of dropping
+  to an uneven scale (`FramesListController.calculateZoom_`).
+- **Live preview**: every update fits one AWTRIX notification body. A still
+  frame goes as raw RGB or, when that is too large, as a one-frame GIF; an
+  animation too large for one body sends its current frame; when nothing fits,
+  the editor tells the host with `live-too-large` (`embed-bridge.js`).
 - **Theming**: light/dark skin driven by the host via `?theme=` / postMessage
   (`data-theme` on `<html>`), including the canvas letterbox painted by
   `FrameRenderer` (`--awx-letterbox`).

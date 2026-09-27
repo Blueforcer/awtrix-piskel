@@ -2,9 +2,15 @@
   <div class="settings-section settings-section-resize awtrix-resize">
     <div class="settings-title">Matrix size</div>
     <div class="settings-item">
-      <button type="button" class="button button-primary resize-preset" data-width="8" data-height="8">8 × 8</button>
-      <button type="button" class="button button-primary resize-preset" data-width="32" data-height="8">32 × 8</button>
-      <div class="ghelp">Resizes the current sprite to a matrix size. Existing pixels are kept, anchored top-left.</div>
+      <div class="resize-presets" role="group" aria-label="Matrix sizes"></div>
+      <form class="resize-custom" novalidate hidden>
+        <label>Width<input class="textfield resize-width" type="number" min="1" step="1" inputmode="numeric" required /></label>
+        <span class="resize-times" aria-hidden="true">×</span>
+        <label>Height<input class="textfield resize-height" type="number" min="1" step="1" inputmode="numeric" required /></label>
+        <button type="submit" class="button">Resize</button>
+      </form>
+      <div class="resize-error" role="alert"></div>
+      <div class="ghelp">Existing pixels are kept, anchored top-left.</div>
     </div>
   </div>
 </script>

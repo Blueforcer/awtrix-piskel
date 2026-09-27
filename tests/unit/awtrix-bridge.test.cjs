@@ -9,12 +9,15 @@ const source = fs.readFileSync(
   "utf8"
 );
 const copy = (value) => JSON.parse(JSON.stringify(value));
-const pngHeader = Buffer.alloc(33);
-Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).copy(pngHeader);
-pngHeader.write("IHDR", 12);
-pngHeader.writeUInt32BE(16, 16);
-pngHeader.writeUInt32BE(8, 20);
-const PNG = "data:image/png;base64," + pngHeader.toString("base64");
+function pngOf(width, height) {
+  const header = Buffer.alloc(33);
+  Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).copy(header);
+  header.write("IHDR", 12);
+  header.writeUInt32BE(width, 16);
+  header.writeUInt32BE(height, 20);
+  return "data:image/png;base64," + header.toString("base64");
+}
+const PNG = pngOf(16, 8);
 function native(name = "", pixels = "original") {
   return {
     modelVersion: 2,
@@ -36,7 +39,7 @@ function native(name = "", pixels = "original") {
     }
   };
 }
-function boot(host = "device") {
+function boot(host = "device", search = "") {
   const sent = [],
     requests = [],
     events = {},
@@ -48,7 +51,9 @@ function boot(host = "device") {
     data = native(),
     paused = false;
   let exportBytes = Buffer.from("GIF89a-export").toString("base64"),
-    exports = 0;
+    exports = 0,
+    stillGif = Buffer.from("GIF89a-still").toString("base64");
+  const stillGifs = [];
   const setTimer = (fn, delay) => {
     timers.set(++timerId, { fn, delay });
     return timerId;
@@ -65,7 +70,9 @@ function boot(host = "device") {
     width: 8,
     height: 8,
     getContext: () => ({
-      getImageData: () => ({ data: new Uint8Array(8 * 8 * 4) })
+      getImageData: () => ({
+        data: new Uint8Array(canvas.width * canvas.height * 4)
+      })
     })
   };
   const pc = {
@@ -77,6 +84,8 @@ function boot(host = "device") {
     },
     getVisibleFrameIndexes: () => [0, 1],
     getCurrentFrameIndex: () => 0,
+    getWidth: () => canvas.width,
+    getHeight: () => canvas.height,
     renderFrameAt: () => canvas,
     getPiskel: () => model(data, doc),
     setPiskel(piskel) {
@@ -107,7 +116,7 @@ function boot(host = "device") {
     crypto: webcrypto,
     setTimeout: setTimer,
     location: {
-      search: `?host=${host}&iconapi=/icons/`,
+      search: `?host=${host}&iconapi=/icons/${search}`,
       href: "https://hub.example/piskel/index.html"
     },
     addEventListener: (event, handler) => {
@@ -139,6 +148,12 @@ function boot(host = "device") {
       }
     },
     utils: {
+      GifEncoder: {
+        encodeBase64(options) {
+          stillGifs.push(options);
+          return stillGif;
+        }
+      },
       serialization: {
         Serializer: {
           serialize() {
@@ -157,6 +172,28 @@ function boot(host = "device") {
           }
         }
       }
+    },
+    model: {
+      Piskel: function (width, height, fps, descriptor) {
+        const json = native(descriptor.name);
+        json.piskel.width = width;
+        json.piskel.height = height;
+        json.piskel.fps = fps;
+        this.json = json;
+        this.descriptor = descriptor;
+        this.addLayer = () => {};
+        this.getFPS = () => fps;
+      },
+      piskel: {
+        Descriptor: function (name, description) {
+          this.name = name;
+          this.description = description;
+        }
+      },
+      Layer: function () {
+        this.addFrame = () => {};
+      },
+      Frame: function () {}
     },
     controller: {
       settings: {
@@ -255,6 +292,14 @@ function boot(host = "device") {
     },
     setExport(value) {
       exportBytes = value;
+    },
+    setStillGif(value) {
+      stillGif = value;
+    },
+    stillGifs,
+    sprite(width, height) {
+      canvas.width = width;
+      canvas.height = height;
     },
     exportCount: () => exports,
     project() {
@@ -492,7 +537,7 @@ test("Ctrl+S delegates to the Hub draft broker, never legacy IndexedDB", () => {
   assert.equal(app.sent.filter((m) => m.type === "project-save").length, 1);
 });
 
-test("Hub auto preview has no device payload limit; NG still falls back safely", () => {
+test("every host mirrors only what fits one notification", () => {
   const hub = boot("hub"),
     device = boot();
   for (const app of [hub, device]) {
@@ -500,18 +545,158 @@ test("Hub auto preview has no device payload limit; NG still falls back safely",
   }
   hub.receive({ type: "config", host: "hub", publishViaParent: true });
   assert.equal(hub.liveButton.hidden, true);
-  assert.equal(hub.sent.findLast((m) => m.type === "live").mode, "gif");
-  assert.equal(
-    hub.sent.findLast((m) => m.type === "live").dataBase64.length,
-    8000
-  );
   device.receive({ type: "config", publishViaParent: true });
   assert.equal(device.sent.filter((m) => m.type === "live").length, 0);
   device.api.setLive(true);
-  assert.equal(device.sent.findLast((m) => m.type === "live").mode, "bitmap");
-  hub.pause(true);
+  for (const app of [hub, device]) {
+    const live = app.sent.findLast((m) => m.type === "live");
+    assert.equal(live.mode, "bitmap");
+    assert.equal(live.dataBase64.length, 8 * 8 * 4);
+  }
+  hub.setExport("R0lGODlh");
+  hub.fps(8);
   hub.tick();
-  assert.equal(hub.sent.findLast((m) => m.type === "live").mode, "bitmap");
+  const animation = hub.sent.findLast((m) => m.type === "live");
+  assert.deepEqual([animation.mode, animation.dataBase64], ["gif", "R0lGODlh"]);
+});
+
+test("a large still frame goes as a one-frame GIF, or not at all", () => {
+  const app = boot("device", "&max=128x32");
+  const lastLive = () => app.sent.findLast((m) => m.type.startsWith("live"));
+  app.pause(true);
+  app.sprite(128, 32);
+  app.api.setLive(true);
+  assert.deepEqual(lastLive(), {
+    ns: "awtrix",
+    type: "live",
+    mode: "gif",
+    mime: "image/gif",
+    dataBase64: Buffer.from("GIF89a-still").toString("base64")
+  });
+  const encoded = app.stillGifs.at(-1);
+  assert.deepEqual(
+    [encoded.width, encoded.height, encoded.frames.length],
+    [128, 32, 1]
+  );
+  const mirrored = app.sent.filter((m) => m.type === "live").length;
+  for (const gif of [null, "A".repeat(7001)]) {
+    app.setStillGif(gif);
+    app.change(String(gif));
+    app.tick();
+    assert.deepEqual(lastLive(), {
+      ns: "awtrix",
+      type: "live-too-large",
+      w: 128,
+      h: 32
+    });
+  }
+  assert.equal(app.sent.filter((m) => m.type === "live").length, mirrored);
+  app.sprite(64, 16);
+  app.change("smaller");
+  app.tick();
+  assert.equal(lastLive().mode, "bitmap");
+  assert.equal(lastLive().dataBase64.length, 64 * 16 * 4);
+});
+
+test("the host's presets and max decide which sizes a drawing may have", () => {
+  const app = boot("device", "&sizes=8x8,52x16,0x4,wide,52x16&max=64x32");
+  assert.deepEqual(copy(app.api.getSizes()), ["8x8", "52x16"]);
+  assert.deepEqual(copy(app.api.getMaxSize()), { width: 64, height: 32 });
+  for (const [width, height, allowed] of [
+    [8, 8, true],
+    [64, 32, true],
+    [1, 1, true],
+    [65, 8, false],
+    [8, 33, false],
+    [0, 8, false],
+    [2.5, 8, false],
+    ["8", 8, false]
+  ]) {
+    assert.equal(
+      app.api.isSizeAllowed(width, height),
+      allowed,
+      `${width}x${height}`
+    );
+  }
+  assert.equal(app.api.sizeHint(), "Choose a drawing up to 64×32 pixels.");
+  app.receive({ type: "config", sizes: ["16x16", "junk"], max: null });
+  assert.deepEqual(copy(app.api.getSizes()), ["16x16"]);
+  assert.equal(app.api.getMaxSize(), null);
+  assert.equal(app.api.isSizeAllowed(8, 8), false);
+  app.receive({ type: "config", sizes: ["junk"] });
+  assert.deepEqual(copy(app.api.getSizes()), ["16x16"]);
+  assert.equal(app.api.sizeHint(), "Choose a drawing of 16×16 pixels.");
+  const plain = boot();
+  assert.deepEqual(copy(plain.api.getSizes()), ["8x8", "32x8"]);
+  assert.equal(plain.api.getMaxSize(), null);
+  assert.equal(plain.api.sizeHint(), "Choose a drawing of 8×8 or 32×8 pixels.");
+});
+
+test("new drawings and drafts may take any size up to the max", () => {
+  const app = boot("hub", "&sizes=8x8,32x8&max=128x32");
+  const result = (requestId) =>
+    app.sent.findLast(
+      (m) => m.type === "project-load-result" && m.requestId === requestId
+    );
+  app.receive({
+    type: "project-new",
+    requestId: "wide",
+    width: 128,
+    height: 32
+  });
+  assert.equal(result("wide").ok, true);
+  const draft = app.project().project;
+  assert.deepEqual(
+    [draft.piskel.piskel.width, draft.piskel.piskel.height],
+    [128, 32]
+  );
+  app.receive({
+    type: "project-new",
+    requestId: "wider",
+    width: 129,
+    height: 32
+  });
+  assert.deepEqual(
+    [result("wider").ok, result("wider").error, result("wider").message],
+    [false, "invalidSize", "Choose a drawing up to 128×32 pixels."]
+  );
+  draft.piskel.piskel.width = 52;
+  draft.piskel.piskel.height = 16;
+  draft.piskel.piskel.layers = [
+    JSON.stringify({
+      name: "tc002",
+      opacity: 1,
+      frameCount: 2,
+      chunks: [{ base64PNG: pngOf(104, 16), layout: [[0], [1]] }]
+    })
+  ];
+  app.receive({ type: "project-load", requestId: "tc002", project: draft });
+  assert.equal(result("tc002").ok, true, result("tc002").message);
+  draft.piskel.piskel.width = 130;
+  draft.piskel.piskel.layers = [
+    JSON.stringify({
+      name: "too wide",
+      opacity: 1,
+      frameCount: 2,
+      chunks: [{ base64PNG: pngOf(260, 16), layout: [[0], [1]] }]
+    })
+  ];
+  app.receive({ type: "project-load", requestId: "too-wide", project: draft });
+  assert.equal(result("too-wide").ok, false);
+  const presetsOnly = boot("hub");
+  presetsOnly.receive({
+    type: "project-new",
+    requestId: "tc002",
+    width: 52,
+    height: 16
+  });
+  const refused = presetsOnly.sent.findLast(
+    (m) => m.type === "project-load-result"
+  );
+  assert.deepEqual(
+    [refused.ok, refused.message],
+    [false, "Choose a drawing of 8×8 or 32×8 pixels."]
+  );
 });
 
 test("owner update forwards target ID and captured draft to the host", () => {

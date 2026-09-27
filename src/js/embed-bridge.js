@@ -6,7 +6,7 @@
  * device I/O; this editor only draws and exchanges image bytes over
  * postMessage. Every message carries { ns: 'awtrix', type, ... }.
  *
- *   Editor -> AWTRIX:  ready | save | list | load | live | live-off
+ *   Editor -> AWTRIX:  ready | save | list | load | live | live-too-large | live-off
  *   AWTRIX -> Editor:  theme | config | list-result | load-result | save-result
  *
  * The Hub owns private project storage and publication through project-*
@@ -24,6 +24,7 @@
   var AWTRIX_NS = "awtrix";
   var parentOrigin = "*"; // tightened to the real parent origin on first inbound message
   var allowedSizes = ["8x8", "32x8"];
+  var maxSize = null;
   var publishViaParent = query("host") === "hub";
   var basedOn = null;
   var iconOrigin = null;
@@ -48,6 +49,66 @@
   }
   function supportsProjects() {
     return isHub() || draftViaParent;
+  }
+
+  // The host names the sizes it offers as presets ("8x8", "52x16"). With a max
+  // it also accepts any other drawing up to that width and height; without one,
+  // exactly its presets.
+  function parseSize(text) {
+    var match = /^(\d{1,3})x(\d{1,3})$/.exec(String(text || ""));
+    if (!match) {
+      return null;
+    }
+    var width = Number(match[1]);
+    var height = Number(match[2]);
+    return width >= 1 && height >= 1 ? { width: width, height: height } : null;
+  }
+  function readSizes(list) {
+    var sizes = [];
+    list.forEach(function (text) {
+      var size = parseSize(text);
+      var key = size && size.width + "x" + size.height;
+      if (key && !sizes.includes(key)) {
+        sizes.push(key);
+      }
+    });
+    return sizes;
+  }
+  function sizeAllowed(width, height) {
+    if (
+      !Number.isInteger(width) ||
+      !Number.isInteger(height) ||
+      width < 1 ||
+      height < 1
+    ) {
+      return false;
+    }
+    if (allowedSizes.includes(width + "x" + height)) {
+      return true;
+    }
+    return (
+      maxSize !== null && width <= maxSize.width && height <= maxSize.height
+    );
+  }
+  function sizeHint() {
+    if (maxSize) {
+      return (
+        "Choose a drawing up to " +
+        maxSize.width +
+        "×" +
+        maxSize.height +
+        " pixels."
+      );
+    }
+    var names = allowedSizes.map(function (size) {
+      return size.replace("x", "×");
+    });
+    var last = names.pop();
+    return (
+      "Choose a drawing of " +
+      (names.length ? names.join(", ") + " or " + last : last) +
+      " pixels."
+    );
   }
 
   function descriptor() {
@@ -296,7 +357,7 @@
       !project.piskel ||
       project.piskel.modelVersion !== Constants.MODEL_VERSION ||
       !data ||
-      !allowedSizes.includes(data.width + "x" + data.height) ||
+      !sizeAllowed(data.width, data.height) ||
       !Number.isFinite(data.fps) ||
       data.fps < 0 ||
       data.fps > 24 ||
@@ -453,13 +514,13 @@
     }
   }
   function newProject(m) {
-    if (!allowedSizes.includes(m.width + "x" + m.height)) {
+    if (!sizeAllowed(m.width, m.height)) {
       sendToParent({
         type: "project-load-result",
         requestId: m.requestId,
         ok: false,
         error: "invalidSize",
-        message: "Choose an 8×8 or 32×8 drawing."
+        message: sizeHint()
       });
       return;
     }
@@ -572,7 +633,7 @@
     badName: "That name cannot be used",
     descriptiveNameRequired:
       "Give your icon a descriptive name with at least one letter.",
-    tooBig: "Bigger than 32x8 pixels",
+    tooBig: "Too large for an icon",
     tooManyFrames: "Too many frames",
     rateLimited: "Too many submissions - try again later",
     duplicate: "Already in the database",
@@ -896,11 +957,10 @@
   }
 
   // ---- live mirror to the physical matrix -----------------------------------
-  // While on: push the current frame as a compact base64 RGB bitmap on every
-  // change (crisp, size-exact, one JSON string); when the preview is actually
-  // animating (FPS > 0, more than one visible frame, not paused) push the whole
-  // sprite as a looping GIF instead. AWTRIX holds it on the panel and replaces
-  // it in place.
+  // While on: push the current frame on every change; when the preview is
+  // actually animating (FPS > 0, more than one visible frame, not paused) push
+  // the whole sprite as a looping GIF instead. AWTRIX holds it on the panel and
+  // replaces it in place.
   var liveOn = false,
     liveTimer = null,
     liveEvents = null,
@@ -918,7 +978,7 @@
   }
   // base64 of the canvas' RGB888 bytes, row-major. A raw pixel array (256 ints
   // for 32x8, 1024 for 32x32) overflows the device's JSON document pool and
-  // comes back 413 payloadTooLarge; this is one JSON string of ~w*h*4/3 bytes.
+  // comes back 413 payloadTooLarge; this is one JSON string of w*h*4 characters.
   function frameToBase64Rgb(canvas) {
     var d = canvas
       .getContext("2d")
@@ -930,29 +990,62 @@
     return btoa(bin);
   }
 
-  function sendLiveBitmap() {
+  // One AWTRIX notification body caps at 8 KB on an ESP32, and every host sends
+  // the image inside such a body. A 32x8 bitmap is ~1 KB and the exact-palette
+  // GIF encoder keeps a 7-frame 32x8 animation under 600 bytes; raw RGB passes
+  // the cap from about 1750 pixels on (64x32, 128x16), a many-frame animation
+  // sooner.
+  var LIVE_BODY_MAX = 7000;
+
+  function fitsLive(b64) {
+    return typeof b64 === "string" && b64.length <= LIVE_BODY_MAX;
+  }
+
+  // The current frame, as a base64 bitmap (the AWTRIX `db` command's string
+  // form, exact and cheapest to draw) or, when that is too large, as a one-frame
+  // GIF, which pixel art shrinks far below raw RGB. Null when neither fits.
+  function stillLive() {
     var pc = pskl.app.piskelController;
     var canvas = pc.renderFrameAt(pc.getCurrentFrameIndex(), true);
+    var bitmap = frameToBase64Rgb(canvas);
+    if (fitsLive(bitmap)) {
+      return {
+        type: "live",
+        mode: "bitmap",
+        w: canvas.width,
+        h: canvas.height,
+        dataBase64: bitmap
+      };
+    }
+    var gif = pskl.utils.GifEncoder.encodeBase64({
+      width: canvas.width,
+      height: canvas.height,
+      frames: [canvas],
+      delayMs: 1000,
+      repeat: 0
+    });
+    return gif && fitsLive(gif)
+      ? { type: "live", mode: "gif", mime: "image/gif", dataBase64: gif }
+      : null;
+  }
+
+  // When nothing fits, nothing is sent: the host hears live-too-large instead
+  // and tells the user.
+  function sendLive(message) {
+    if (message) {
+      sendToParent(message);
+      return;
+    }
+    var pc = pskl.app.piskelController;
     sendToParent({
-      type: "live",
-      mode: "bitmap",
-      w: canvas.width,
-      h: canvas.height,
-      dataBase64: frameToBase64Rgb(canvas)
+      type: "live-too-large",
+      w: pc.getWidth(),
+      h: pc.getHeight()
     });
   }
 
-  // One AWTRIX notification body caps at ~8 KB on the device. Both payloads sit
-  // far below that — a base64 bitmap is ~1 KB at 32x8, and the exact-palette GIF
-  // encoder keeps a 7-frame 32x8 animation under 600 bytes. The guard only
-  // catches pathological sprites (hundreds of frames, or a photographic import
-  // that falls back to the quantizing encoder); those mirror as a still frame
-  // rather than failing the request.
-  var LIVE_BODY_MAX = 7000;
-
-  // A still sprite goes as a compact base64 bitmap (the AWTRIX `db` command's
-  // string form). A running animation goes as a looping GIF, which the device
-  // animates on its own — a single still bitmap could not.
+  // A running animation goes as a looping GIF, which the device animates on its
+  // own; when it is too large, the current frame goes instead.
   function pushLiveNow() {
     if (!liveOn) {
       return;
@@ -970,20 +1063,20 @@
             if (!liveOn || sequence !== liveSequence) {
               return;
             }
-            if (!isHub() && b64.length > LIVE_BODY_MAX) {
-              sendLiveBitmap(); // animation too big for one notification
-            } else {
-              sendToParent({
-                type: "live",
-                mode: "gif",
-                mime: "image/gif",
-                dataBase64: b64
-              });
-            }
+            sendLive(
+              fitsLive(b64)
+                ? {
+                    type: "live",
+                    mode: "gif",
+                    mime: "image/gif",
+                    dataBase64: b64
+                  }
+                : stillLive()
+            );
           }
         );
       } else {
-        sendLiveBitmap();
+        sendLive(stillLive());
       }
     } catch (_e) {
       /* editor not ready yet */
@@ -1061,8 +1154,12 @@
         draftViaParent =
           isHub() || m.draftViaParent === true || m.projectViaParent === true;
         emit("config");
-        if (Array.isArray(m.sizes) && m.sizes.length) {
-          allowedSizes = m.sizes;
+        var presets = Array.isArray(m.sizes) ? readSizes(m.sizes) : [];
+        if (presets.length) {
+          allowedSizes = presets;
+        }
+        if (m.max !== undefined) {
+          maxSize = parseSize(m.max);
         }
         if (isHub()) {
           setLive(true);
@@ -1248,6 +1345,11 @@
     getSizes: function () {
       return allowedSizes.slice();
     },
+    getMaxSize: function () {
+      return maxSize && { width: maxSize.width, height: maxSize.height };
+    },
+    isSizeAllowed: sizeAllowed,
+    sizeHint: sizeHint,
     isHub: isHub,
     supportsProjects: supportsProjects,
     getTermsUrl: function () {
@@ -1265,9 +1367,11 @@
     // Pre-paint theme/size come in via the query string so the editor looks
     // right before the first AWTRIX message arrives.
     applyTheme(query("theme") || "dark");
-    if (query("sizes")) {
-      allowedSizes = query("sizes").split(",");
+    var presets = readSizes(String(query("sizes") || "").split(","));
+    if (presets.length) {
+      allowedSizes = presets;
     }
+    maxSize = parseSize(query("max"));
 
     pskl.app.awtrixBridge = api;
     originDescriptor = descriptor();

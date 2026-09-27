@@ -298,7 +298,11 @@
     canvasContainer.style.marginTop = horizontalMargin + "px";
 
     var width = this.zoom * this.piskelController.getCurrentFrame().getWidth();
-    var verticalMargin = (Constants.PREVIEW_FILM_SIZE - width) / 2;
+    var tileWidth = Math.max(Constants.PREVIEW_FILM_SIZE, width);
+    if (tileWidth > Constants.PREVIEW_FILM_SIZE) {
+      previewTileRoot.style.width = tileWidth + "px";
+    }
+    var verticalMargin = (tileWidth - width) / 2;
     canvasContainer.style.marginLeft = verticalMargin + "px";
     canvasContainer.style.marginRight = verticalMargin + "px";
 
@@ -371,12 +375,24 @@
   };
 
   /**
-   * Calculate the preview zoom depending on the piskel size
+   * AWTRIX NG: a whole-number zoom, so every sprite pixel is equally large on
+   * the tile. A sprite that would fall below 2x in the square tile widens its
+   * tile up to WIDE_TILE to keep the largest whole zoom that fits (52x16 at 2x,
+   * not an uneven 1.85x; 128x32 at 1x). Anything larger than every matrix
+   * scales down to fit the square tile, as upstream.
    */
+  var WIDE_TILE = 128;
   ns.FramesListController.prototype.calculateZoom_ = function () {
     var frame = this.piskelController.getCurrentFrame();
-    var frameSize = Math.max(frame.getHeight(), frame.getWidth());
-
-    return Constants.PREVIEW_FILM_SIZE / frameSize;
+    var width = frame.getWidth();
+    var height = frame.getHeight();
+    var tile = Constants.PREVIEW_FILM_SIZE;
+    if (width > WIDE_TILE || height > tile) {
+      return tile / Math.max(width, height);
+    }
+    var zoom = Math.floor(tile / Math.max(width, height));
+    return zoom >= 2
+      ? zoom
+      : Math.floor(Math.min(WIDE_TILE / width, tile / height));
   };
 })();
