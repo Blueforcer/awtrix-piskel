@@ -14786,7 +14786,8 @@ if (!Uint32Array.prototype.fill) {
 ;(function () {
   var ns = $.namespace("pskl.utils.serialization");
 
-  ns.Deserializer = function (data, callback) {
+  ns.Deserializer = function (data, callback, onError) {
+    this.onError_ = onError || function () {};
     this.layersToLoad_ = 0;
     this.data_ = data;
     this.callback_ = callback;
@@ -14798,7 +14799,7 @@ if (!Uint32Array.prototype.fill) {
     try {
       var deserializer;
       if (data.modelVersion == Constants.MODEL_VERSION) {
-        deserializer = new ns.Deserializer(data, onSuccess);
+        deserializer = new ns.Deserializer(data, onSuccess, onError);
       } else if (data.modelVersion == 1) {
         deserializer = new ns.backward.Deserializer_v1(data, onSuccess);
       } else {
@@ -14855,16 +14856,23 @@ if (!Uint32Array.prototype.fill) {
         var image = new Image();
         // Load the chunk image in an Image object.
         image.onload = function () {
-          // extract the chunkFrames from the chunk image
-          var chunkFrames = pskl.utils.FrameUtils.createFramesFromChunk(
-            image,
-            chunk.layout
-          );
-          // add each image to the frames array, at the extracted index
-          chunkFrames.forEach(function (chunkFrame) {
-            frames[chunkFrame.index] = chunkFrame.frame;
-          });
-          deferred.resolve();
+          try {
+            // extract the chunkFrames from the chunk image
+            var chunkFrames = pskl.utils.FrameUtils.createFramesFromChunk(
+              image,
+              chunk.layout
+            );
+            // add each image to the frames array, at the extracted index
+            chunkFrames.forEach(function (chunkFrame) {
+              frames[chunkFrame.index] = chunkFrame.frame;
+            });
+            deferred.resolve();
+          } catch (error) {
+            deferred.reject(error);
+          }
+        };
+        image.onerror = function () {
+          deferred.reject(new Error("Invalid project image"));
         };
         image.src = chunk.base64PNG;
         return deferred.promise;
@@ -14879,10 +14887,11 @@ if (!Uint32Array.prototype.fill) {
           this.onLayerLoaded_();
         }.bind(this)
       )
-      .catch(function (error) {
-        console.error("Failed to deserialize layer");
-        console.error(error);
-      });
+      .catch(
+        function (error) {
+          this.onError_(error);
+        }.bind(this)
+      );
 
     return layer;
   };
@@ -24483,7 +24492,11 @@ return Q;
     canvasContainer.style.marginTop = horizontalMargin + "px";
 
     var width = this.zoom * this.piskelController.getCurrentFrame().getWidth();
-    var verticalMargin = (Constants.PREVIEW_FILM_SIZE - width) / 2;
+    var tileWidth = Math.max(Constants.PREVIEW_FILM_SIZE, width);
+    if (tileWidth > Constants.PREVIEW_FILM_SIZE) {
+      previewTileRoot.style.width = tileWidth + "px";
+    }
+    var verticalMargin = (tileWidth - width) / 2;
     canvasContainer.style.marginLeft = verticalMargin + "px";
     canvasContainer.style.marginRight = verticalMargin + "px";
 
@@ -24556,13 +24569,25 @@ return Q;
   };
 
   /**
-   * Calculate the preview zoom depending on the piskel size
+   * AWTRIX NG: a whole-number zoom, so every sprite pixel is equally large on
+   * the tile. A sprite that would fall below 2x in the square tile widens its
+   * tile up to WIDE_TILE to keep the largest whole zoom that fits (52x16 at 2x,
+   * not an uneven 1.85x; 128x32 at 1x). Anything larger than every matrix
+   * scales down to fit the square tile, as upstream.
    */
+  var WIDE_TILE = 128;
   ns.FramesListController.prototype.calculateZoom_ = function () {
     var frame = this.piskelController.getCurrentFrame();
-    var frameSize = Math.max(frame.getHeight(), frame.getWidth());
-
-    return Constants.PREVIEW_FILM_SIZE / frameSize;
+    var width = frame.getWidth();
+    var height = frame.getHeight();
+    var tile = Constants.PREVIEW_FILM_SIZE;
+    if (width > WIDE_TILE || height > tile) {
+      return tile / Math.max(width, height);
+    }
+    var zoom = Math.floor(tile / Math.max(width, height));
+    return zoom >= 2
+      ? zoom
+      : Math.floor(Math.min(WIDE_TILE / width, tile / height));
   };
 })();
 ;(function () {
@@ -27610,8 +27635,9 @@ return Q;
   };
 })();
 ;/**
- * AWTRIX NG resize panel — two fixed matrix-size buttons (8×8, 32×8) instead of
- * Piskel's free width/height inputs. Existing pixels are kept, anchored
+ * AWTRIX NG resize panel — the host's matrix sizes as buttons instead of
+ * Piskel's free width/height form, plus a width × height of your own when the
+ * host allows any size up to a maximum. Existing pixels are kept, anchored
  * top-left, so an 8×8 icon promoted to 32×8 lands in the corner and can be
  * extended.
  */
@@ -27628,32 +27654,84 @@ return Q;
   );
 
   ns.ResizeController.prototype.init = function () {
-    var buttons = document.querySelectorAll(".resize-preset");
-    Array.prototype.forEach.call(
-      buttons,
-      function (button) {
-        this.addEventListener(button, "click", this.onPresetClick_);
-      },
-      this
-    );
+    var bridge = pskl.app.awtrixBridge;
+    var width = this.piskelController.getWidth();
+    var height = this.piskelController.getHeight();
+
+    this.presets = document.querySelector(".resize-presets");
+    bridge.getSizes().forEach(function (size) {
+      var parts = size.split("x");
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = "button button-primary resize-preset";
+      button.setAttribute("data-width", parts[0]);
+      button.setAttribute("data-height", parts[1]);
+      button.setAttribute(
+        "aria-pressed",
+        String(Number(parts[0]) === width && Number(parts[1]) === height)
+      );
+      button.textContent = parts[0] + " × " + parts[1];
+      this.presets.appendChild(button);
+      this.addEventListener(button, "click", this.onPresetClick_);
+    }, this);
+
+    this.error = document.querySelector(".resize-error");
+    var max = bridge.getMaxSize();
+    if (!max) {
+      return;
+    }
+    this.form = document.querySelector(".resize-custom");
+    this.widthInput = this.form.querySelector(".resize-width");
+    this.heightInput = this.form.querySelector(".resize-height");
+    this.widthInput.max = max.width;
+    this.heightInput.max = max.height;
+    this.widthInput.value = width;
+    this.heightInput.value = height;
+    this.form.hidden = false;
+    this.addEventListener(this.form, "submit", this.onCustomSubmit_);
+    this.addEventListener(this.form, "input", this.onCustomInput_);
+  };
+
+  ns.ResizeController.prototype.onCustomInput_ = function () {
+    this.error.textContent = "";
   };
 
   ns.ResizeController.prototype.onPresetClick_ = function (evt) {
     var button = evt.currentTarget || evt.target;
-    var width = parseInt(button.getAttribute("data-width"), 10);
-    var height = parseInt(button.getAttribute("data-height"), 10);
-
-    var piskel = pskl.utils.ResizeUtils.resizePiskel(
-      this.piskelController.getPiskel(),
-      {
-        width: width,
-        height: height,
-        origin: "TOPLEFT",
-        resizeContent: false
-      }
+    this.resize_(
+      parseInt(button.getAttribute("data-width"), 10),
+      parseInt(button.getAttribute("data-height"), 10)
     );
+  };
 
-    pskl.app.piskelController.setPiskel(piskel, { preserveState: true });
+  ns.ResizeController.prototype.onCustomSubmit_ = function (evt) {
+    evt.preventDefault();
+    var bridge = pskl.app.awtrixBridge;
+    var width = Number(this.widthInput.value);
+    var height = Number(this.heightInput.value);
+    if (!bridge.isSizeAllowed(width, height)) {
+      this.error.textContent = bridge.sizeHint();
+      return;
+    }
+    this.resize_(width, height);
+  };
+
+  ns.ResizeController.prototype.resize_ = function (width, height) {
+    if (
+      width !== this.piskelController.getWidth() ||
+      height !== this.piskelController.getHeight()
+    ) {
+      var piskel = pskl.utils.ResizeUtils.resizePiskel(
+        this.piskelController.getPiskel(),
+        {
+          width: width,
+          height: height,
+          origin: "TOPLEFT",
+          resizeContent: false
+        }
+      );
+      pskl.app.piskelController.setPiskel(piskel, { preserveState: true });
+    }
     $.publish(Events.CLOSE_SETTINGS_DRAWER);
   };
 })();
@@ -27684,20 +27762,82 @@ return Q;
 
     this.nameInput = document.querySelector("#awtrix-name");
     this.saveButton = document.querySelector("#awtrix-save");
+    this.cloudButton = document.querySelector("#awtrix-save-cloud");
+    this.downloadButton = document.querySelector("#awtrix-download");
+    this.draftButton = document.querySelector("#awtrix-save-draft");
+    this.updateButton = document.querySelector("#awtrix-update-cloud");
+    this.updateHint = document.querySelector("#awtrix-update-hint");
+    this.updatePublicationActions_();
     this.openList = document.querySelector("#awtrix-open-list");
     this.status = document.querySelector("#awtrix-status");
 
     this.nameInput.value = bridge ? bridge.getName() : "";
+    this.saveButton.value =
+      bridge && bridge.isHub() ? "Save draft" : "Save to AWTRIX";
+    if (this.draftButton) {
+      this.draftButton.hidden = !(
+        bridge &&
+        !bridge.isHub() &&
+        bridge.supportsProjects()
+      );
+    }
+    this.cloudButton.value =
+      bridge && bridge.isHub() ? "Publish…" : "Publish in Hub";
+    if (this.downloadButton) {
+      this.downloadButton.hidden = !(bridge && bridge.isHub());
+    }
+    var title = document.querySelector(".awtrix-settings > .settings-title");
+    if (title && bridge && bridge.isHub()) {
+      title.textContent = "Your draft";
+    }
+    var hubHint = document.querySelector(".awtrix-hub-hint");
+    var deviceHint = document.querySelector(".awtrix-device-hint");
+    if (hubHint) {
+      hubHint.hidden = !(bridge && bridge.isHub());
+    }
+    if (deviceHint) {
+      deviceHint.hidden = !!(bridge && bridge.isHub());
+    }
+    var terms = document.querySelector(".awtrix-terms");
+    if (terms && bridge) {
+      terms.href = bridge.getTermsUrl();
+    }
+    var deviceOpen = document.querySelector(".awtrix-open-section");
+    if (deviceOpen) {
+      deviceOpen.hidden = !!(bridge && bridge.isHub());
+    }
 
     this.addEventListener(this.nameInput, "input", this.onNameInput_);
     this.addEventListener(this.saveButton, "click", this.onSaveClick_);
+    if (this.draftButton) {
+      this.addEventListener(this.draftButton, "click", this.onDraftClick_);
+    }
+    this.addEventListener(this.cloudButton, "click", this.onCloudClick_);
+    if (this.updateButton) {
+      this.addEventListener(this.updateButton, "click", this.onUpdateClick_);
+    }
+    if (this.downloadButton) {
+      this.addEventListener(
+        this.downloadButton,
+        "click",
+        this.onDownloadClick_
+      );
+    }
     this.addEventListener(this.openList, "change", this.onOpenChange_);
 
     if (bridge) {
       this.unsubscribes.push(bridge.on("list", this.onListResult_.bind(this)));
+      this.unsubscribes.push(
+        bridge.on("provenance", this.updatePublicationActions_.bind(this))
+      );
+      this.unsubscribes.push(
+        bridge.on("config", this.updatePublicationActions_.bind(this))
+      );
       this.unsubscribes.push(bridge.on("status", this.setStatus_.bind(this)));
       this.unsubscribes.push(bridge.on("name", this.onNameLoaded_.bind(this)));
-      bridge.requestList(); // refresh the icon list on every open
+      if (!bridge.isHub()) {
+        bridge.requestList(); // device files only
+      }
     }
   };
 
@@ -27710,6 +27850,7 @@ return Q;
   };
 
   ns.AwtrixController.prototype.onNameInput_ = function () {
+    this.nameInput.removeAttribute("aria-invalid");
     if (pskl.app.awtrixBridge) {
       pskl.app.awtrixBridge.setName(this.nameInput.value);
     }
@@ -27717,11 +27858,76 @@ return Q;
 
   ns.AwtrixController.prototype.onNameLoaded_ = function (name) {
     this.nameInput.value = name;
+    this.updatePublicationActions_();
   };
 
   ns.AwtrixController.prototype.onSaveClick_ = function () {
     if (pskl.app.awtrixBridge) {
       pskl.app.awtrixBridge.save(this.nameInput.value.trim());
+    }
+  };
+
+  ns.AwtrixController.prototype.updatePublicationActions_ = function () {
+    var bridge = pskl.app.awtrixBridge;
+    var available = bridge && bridge.canUpdatePublished();
+    if (this.updateButton) {
+      this.updateButton.hidden = !available;
+    }
+    if (this.updateHint) {
+      this.updateHint.hidden = !available;
+    }
+  };
+
+  ns.AwtrixController.prototype.onUpdateClick_ = function () {
+    var bridge = pskl.app.awtrixBridge;
+    if (!bridge) {
+      return;
+    }
+    var name = this.nameInput.value.trim();
+    var error = bridge.publicationNameError(name);
+    if (error) {
+      this.nameInput.setAttribute("aria-invalid", "true");
+      this.nameInput.focus();
+      this.nameInput.select();
+      this.setStatus_(error);
+      return;
+    }
+    bridge.updatePublished(name);
+  };
+
+  ns.AwtrixController.prototype.onDraftClick_ = function () {
+    var bridge = pskl.app.awtrixBridge;
+    if (bridge) {
+      bridge.saveProject(this.nameInput.value.trim());
+    }
+  };
+
+  ns.AwtrixController.prototype.onDownloadClick_ = function () {
+    var bridge = pskl.app.awtrixBridge;
+    if (bridge) {
+      bridge.setName(this.nameInput.value.trim());
+      bridge.download();
+    }
+  };
+
+  ns.AwtrixController.prototype.onCloudClick_ = function () {
+    var bridge = pskl.app.awtrixBridge;
+    if (bridge) {
+      var name = this.nameInput.value.trim();
+      if (bridge.isHub()) {
+        bridge.saveToCloud(name);
+        return;
+      }
+      var nameError = bridge.publicationNameError(name);
+      if (nameError) {
+        this.nameInput.setAttribute("aria-invalid", "true");
+        this.setStatus_(nameError);
+        this.nameInput.focus();
+        this.nameInput.select();
+        return;
+      }
+      this.nameInput.removeAttribute("aria-invalid");
+      bridge.saveToCloud(name);
     }
   };
 
@@ -27735,9 +27941,28 @@ return Q;
     }
   };
 
-  ns.AwtrixController.prototype.setStatus_ = function (text) {
-    if (this.status) {
-      this.status.textContent = text || "";
+  /**
+   * @param {string} text
+   * @param {?{url: string, label: string}} link where the answer points, if
+   *        anywhere - the published icon, or the Hub sign-in page when the
+   *        editor is framed by the clock and has no Hub session to publish with.
+   */
+  ns.AwtrixController.prototype.setStatus_ = function (text, link) {
+    if (!this.status) {
+      return;
+    }
+    this.status.textContent = text || "";
+    if (link && link.url) {
+      var anchor = document.createElement("a");
+      anchor.href = link.url;
+      anchor.target = "_blank";
+      // The editor runs framed; without noopener the opened tab could reach
+      // back through window.opener.
+      anchor.rel = "noopener noreferrer";
+      anchor.className = "save-status-link";
+      anchor.textContent = link.label || "Open";
+      this.status.appendChild(document.createTextNode(" "));
+      this.status.appendChild(anchor);
     }
   };
 
@@ -31028,6 +31253,11 @@ return Q;
   };
 
   ns.StorageService.prototype.onSaveKey_ = function (charkey) {
+    var bridge = pskl.app.awtrixBridge;
+    if (bridge && bridge.supportsProjects()) {
+      bridge.saveProject();
+      return;
+    }
     if (pskl.app.isLoggedIn()) {
       this.saveToGallery(this.piskelController.getPiskel());
     } else if (pskl.utils.Environment.detectNodeWebkit()) {
@@ -31651,8 +31881,15 @@ return Q;
   ns.BeforeUnloadService.prototype.onBeforeUnload = function (evt) {
     // Attempt one last backup. Some of it may fail due to the asynchronous
     // nature of IndexedDB.
-    pskl.app.backupService.backup();
-    if (pskl.app.savedStatusService.isDirty()) {
+    var bridge = pskl.app.awtrixBridge;
+    if (!bridge || !bridge.supportsProjects()) {
+      pskl.app.backupService.backup();
+    }
+    if (
+      bridge && bridge.supportsProjects()
+        ? bridge.isDirty()
+        : pskl.app.savedStatusService.isDirty()
+    ) {
       var confirmationMessage =
         "Your current sprite has unsaved changes. Are you sure you want to quit?";
 
@@ -33844,6 +34081,7 @@ ns.ToolsHelper = {
     return pskl.utils.Template.replace(tpl, {
       cssclass: ["tool-icon", "icon-" + tool.toolId].join(" "),
       toolid: tool.toolId,
+      label: tool.getHelpText(),
       title: this.getTooltipText(tool),
       tooltipposition: tooltipPosition
     });
@@ -37545,15 +37783,19 @@ ns.ToolsHelper = {
       this.shortcutService.init();
 
       // AWTRIX NG: the editor targets LED matrices, so a new sprite starts at a
-      // matrix size (32×8 by default, or the first entry of ?sizes=WxH,…) rather
-      // than Piskel's stored default.
+      // matrix size (32×8 by default, or the first usable entry of
+      // ?sizes=WxH,…) rather than Piskel's stored default. Usable means what
+      // embed-bridge.js accepts as a preset: 1–3 digits each, at least 1.
       var size = { width: 32, height: 8 };
       var sizesParam = /[?&]sizes=([^&]*)/.exec(window.location.search);
-      if (sizesParam) {
-        var first = decodeURIComponent(sizesParam[1]).split(",")[0];
-        var wh = /^(\d+)x(\d+)$/.exec(first.trim());
-        if (wh) {
-          size = { width: parseInt(wh[1], 10), height: parseInt(wh[2], 10) };
+      var entries = sizesParam
+        ? decodeURIComponent(sizesParam[1]).split(",")
+        : [];
+      for (var i = 0; i < entries.length; i++) {
+        var wh = /^(\d{1,3})x(\d{1,3})$/.exec(entries[i].trim());
+        if (wh && Number(wh[1]) >= 1 && Number(wh[2]) >= 1) {
+          size = { width: Number(wh[1]), height: Number(wh[2]) };
+          break;
         }
       }
       var fps = Constants.DEFAULT.FPS;
@@ -37850,6 +38092,119 @@ ns.ToolsHelper = {
   };
 })();
 ;(function () {})();
+;(function () {
+  "use strict";
+
+  function setControlState(element) {
+    if (element.getAttribute("role") === "radio") {
+      var checked = element.classList.contains("selected");
+      element.setAttribute("aria-checked", checked ? "true" : "false");
+      element.tabIndex = checked ? 0 : -1;
+      return;
+    }
+
+    if (element.hasAttribute("aria-pressed")) {
+      element.setAttribute(
+        "aria-pressed",
+        element.classList.contains("selected") ||
+          element.classList.contains("on") ||
+          element.classList.contains("playing") ||
+          element.classList.contains("preview-toggle-onion-skin-enabled") ||
+          element.classList.contains("has-expanded-drawer")
+          ? "true"
+          : "false"
+      );
+    }
+  }
+
+  function annotate(root) {
+    var scope = root && root.querySelectorAll ? root : document;
+
+    scope
+      .querySelectorAll("[role=button], [role=radio]")
+      .forEach(setControlState);
+    scope.querySelectorAll("canvas").forEach(function (canvas) {
+      // The editor is a stack of canvases. Expose the labelled composite
+      // container once instead of several indistinguishable bitmap nodes.
+      canvas.setAttribute("aria-hidden", "true");
+      canvas.tabIndex = -1;
+    });
+  }
+
+  function activate(element) {
+    element.dispatchEvent(
+      new MouseEvent("mousedown", { bubbles: true, cancelable: true })
+    );
+    element.click();
+  }
+
+  function onKeydown(event) {
+    var element =
+      event.target.closest &&
+      event.target.closest("[role=button], [role=radio]");
+
+    if (!element || element.tagName === "BUTTON") {
+      return;
+    }
+
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      activate(element);
+      element.focus();
+      return;
+    }
+
+    if (
+      element.getAttribute("role") === "radio" &&
+      ["ArrowLeft", "ArrowUp", "ArrowRight", "ArrowDown"].indexOf(event.key) !==
+        -1
+    ) {
+      var radios = Array.prototype.slice.call(
+        element.parentElement.querySelectorAll("[role=radio]")
+      );
+      var direction =
+        event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
+      var next =
+        radios[
+          (radios.indexOf(element) + direction + radios.length) % radios.length
+        ];
+
+      event.preventDefault();
+      activate(next);
+      next.focus();
+    }
+  }
+
+  window.piskelReadyCallbacks = window.piskelReadyCallbacks || [];
+  window.piskelReadyCallbacks.push(function () {
+    annotate(document);
+    document.addEventListener("keydown", onKeydown);
+
+    var observer = new MutationObserver(function (records) {
+      records.forEach(function (record) {
+        if (record.type === "attributes") {
+          setControlState(record.target);
+        } else {
+          record.addedNodes.forEach(annotate);
+        }
+      });
+    });
+
+    observer.observe(document.getElementById("main-wrapper"), {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["class"]
+    });
+
+    $.subscribe(Events.TOOL_SELECTED, function (event, tool) {
+      var status = document.getElementById("editor-accessibility-status");
+      if (status && tool) {
+        status.textContent = "Selected tool: " + tool.getHelpText();
+      }
+    });
+  });
+})();
 ;/**
  * AWTRIX NG <-> Piskel embed bridge.
  *
@@ -37858,8 +38213,13 @@ ns.ToolsHelper = {
  * device I/O; this editor only draws and exchanges image bytes over
  * postMessage. Every message carries { ns: 'awtrix', type, ... }.
  *
- *   Editor -> AWTRIX:  ready | save | list | load | live | live-off
+ *   Editor -> AWTRIX:  ready | save | list | load | live | live-too-large | live-off
+ *   (live-too-large and live.still only for hosts whose config says protocol 2)
  *   AWTRIX -> Editor:  theme | config | list-result | load-result | save-result
+ *
+ * The Hub owns private project storage and publication through project-*
+ * messages and publish-request/publish-result. A device can opt into the same
+ * publication broker. Only standalone/device legacy mode submits directly.
  *
  * This file is transport only. The Save/Open/Live UI lives in
  * controller/settings/AwtrixController.js, which drives the bridge through the
@@ -37872,6 +38232,137 @@ ns.ToolsHelper = {
   var AWTRIX_NS = "awtrix";
   var parentOrigin = "*"; // tightened to the real parent origin on first inbound message
   var allowedSizes = ["8x8", "32x8"];
+  var maxSize = null;
+  // Version of the message contract the host understands, from its config
+  // message. 2 = live-too-large, and the still flag on live messages.
+  var hostProtocol = 1;
+  var publishViaParent = query("host") === "hub";
+  var basedOn = null;
+  var iconOrigin = null;
+  var originDescriptor = null;
+  var pendingPublication = null;
+  var publicationSequence = 0;
+  var hostIsHub = query("host") === "hub";
+  var draftViaParent = hostIsHub;
+  var original = null;
+  var projectRevision = 0;
+  var projectSequence = 0;
+  var projectTimer = null;
+  var projectSignature = null;
+  var savedSignature = null;
+  var pendingSaves = {};
+  var observedProjects = {};
+  var loadingProject = false;
+  var loadSequence = 0;
+
+  function isHub() {
+    return hostIsHub;
+  }
+  function supportsProjects() {
+    return isHub() || draftViaParent;
+  }
+
+  // The host names the sizes it offers as presets ("8x8", "52x16"). With a max
+  // it also accepts any other drawing up to that width and height; without one,
+  // exactly its presets.
+  function parseSize(text) {
+    var match = /^(\d{1,3})x(\d{1,3})$/.exec(String(text || ""));
+    if (!match) {
+      return null;
+    }
+    var width = Number(match[1]);
+    var height = Number(match[2]);
+    return width >= 1 && height >= 1 ? { width: width, height: height } : null;
+  }
+  function readSizes(list) {
+    var sizes = [];
+    list.forEach(function (text) {
+      var size = parseSize(text);
+      var key = size && size.width + "x" + size.height;
+      if (key && !sizes.includes(key)) {
+        sizes.push(key);
+      }
+    });
+    return sizes;
+  }
+  function sizeAllowed(width, height) {
+    if (
+      !Number.isInteger(width) ||
+      !Number.isInteger(height) ||
+      width < 1 ||
+      height < 1
+    ) {
+      return false;
+    }
+    if (allowedSizes.includes(width + "x" + height)) {
+      return true;
+    }
+    return (
+      maxSize !== null && width <= maxSize.width && height <= maxSize.height
+    );
+  }
+  function sizeHint() {
+    if (maxSize) {
+      return (
+        "Choose a drawing up to " +
+        maxSize.width +
+        "×" +
+        maxSize.height +
+        " pixels."
+      );
+    }
+    var names = allowedSizes.map(function (size) {
+      return size.replace("x", "×");
+    });
+    var last = names.pop();
+    return (
+      "Choose a drawing of " +
+      (names.length ? names.join(", ") + " or " + last : last) +
+      " pixels."
+    );
+  }
+
+  function descriptor() {
+    return pskl.app.piskelController
+      .getWrappedPiskelController()
+      .piskel.getDescriptor();
+  }
+  function currentOrigin() {
+    // History restores the same descriptor. A newly created/imported document
+    // has a different one, so it must never inherit another icon's attribution.
+    if (originDescriptor !== descriptor()) {
+      basedOn = null;
+      iconOrigin = null;
+      original = null;
+      originDescriptor = descriptor();
+      iconName = String(originDescriptor.name || "");
+      emit("name", iconName);
+    }
+    return iconOrigin;
+  }
+  function setProvenance(base, origin) {
+    basedOn = /^[A-Za-z0-9_-]{1,32}$/.test(base || "") ? base : null;
+    iconOrigin = origin && typeof origin === "object" ? origin : null;
+    originDescriptor = descriptor();
+    emit("provenance");
+  }
+  function localHash(base64) {
+    if (!window.crypto || !window.crypto.subtle) {
+      return Promise.resolve(null);
+    }
+    return base64ToBlob(base64, "image/gif")
+      .arrayBuffer()
+      .then(function (bytes) {
+        return window.crypto.subtle.digest("SHA-256", bytes);
+      })
+      .then(function (hash) {
+        return Array.from(new Uint8Array(hash))
+          .map(function (b) {
+            return b.toString(16).padStart(2, "0");
+          })
+          .join("");
+      });
+  }
 
   function query(name) {
     var m = new RegExp("[?&]" + name + "=([^&]*)").exec(window.location.search);
@@ -37906,14 +38397,407 @@ ns.ToolsHelper = {
       }
     };
   }
-  function emit(type, data) {
+  // `extra` is optional and only "status" uses it today: a {url, label} pair the
+  // UI turns into a link, so an answer that points somewhere (published icon,
+  // sign-in page) can be followed instead of merely read.
+  function emit(type, data, extra) {
     (listeners[type] || []).slice().forEach(function (fn) {
-      fn(data);
+      fn(data, extra);
     });
+  }
+
+  // Hub owns durable storage. This envelope keeps Piskel's editable layers,
+  // frame order/timing and the source bytes together, independently of filenames.
+  function nativeProject() {
+    var pc = pskl.app.piskelController;
+    return JSON.parse(
+      pskl.utils.serialization.Serializer.serialize(pc.getPiskel())
+    );
+  }
+  function contentSignature(project) {
+    var content = JSON.parse(JSON.stringify(project));
+    delete content.piskel.name;
+    delete content.piskel.description;
+    return JSON.stringify(content);
+  }
+  function snapshot() {
+    currentOrigin();
+    var native = nativeProject();
+    native.piskel.name = iconName;
+    return {
+      version: 1,
+      name: iconName,
+      piskel: native,
+      based_on: basedOn,
+      origin: iconOrigin,
+      original: original
+    };
+  }
+  function unchangedOriginal(project) {
+    return !!(
+      project.original &&
+      project.original.slug &&
+      project.original.baseline === contentSignature(project.piskel)
+    );
+  }
+  function observeProject() {
+    var project = snapshot();
+    var signature = JSON.stringify(project);
+    if (signature !== projectSignature) {
+      projectRevision += 1;
+      projectSignature = signature;
+    }
+    observedProjects[projectRevision] = signature;
+    Object.keys(observedProjects).forEach(function (revision) {
+      if (Number(revision) !== projectRevision) {
+        delete observedProjects[revision];
+      }
+    });
+    return {
+      project: project,
+      revision: projectRevision,
+      unchangedOriginal: unchangedOriginal(project)
+    };
+  }
+  function projectReply(type, requestId) {
+    try {
+      var result = observeProject();
+      result.type = type;
+      result.requestId = requestId;
+      result.ok = true;
+      sendToParent(result);
+      return result;
+    } catch (_error) {
+      sendToParent({
+        type: type,
+        requestId: requestId,
+        ok: false,
+        error: "projectExportFailed",
+        message: "Your draft could not be read. Please try again."
+      });
+      return null;
+    }
+  }
+  function notifyProjectChanged() {
+    if (!supportsProjects() || loadingProject) {
+      return;
+    }
+    var previous = projectSignature;
+    var result = projectReply("project-changed");
+    if (result && previous !== projectSignature) {
+      emit("dirty", true);
+    }
+  }
+  function scheduleProjectChanged() {
+    if (!supportsProjects() || loadingProject) {
+      return;
+    }
+    clearTimeout(projectTimer);
+    projectTimer = setTimeout(notifyProjectChanged, 400);
+  }
+  function setName(name) {
+    currentOrigin();
+    iconName = supportsProjects() ? String(name || "") : stripExt(name);
+    if (supportsProjects()) {
+      descriptor().name = iconName;
+    }
+    emit("name", iconName);
+    scheduleProjectChanged();
+  }
+  function saveProject(name) {
+    if (!supportsProjects()) {
+      return;
+    }
+    if (typeof name === "string") {
+      setName(name);
+    }
+    clearTimeout(projectTimer);
+    var requestId = "draft-" + ++projectSequence;
+    // Register before sending: a synchronous parent/test broker may reply at once.
+    var result;
+    try {
+      result = observeProject();
+      pendingSaves[requestId] = {
+        signature: projectSignature,
+        revision: result.revision
+      };
+    } catch (_error) {
+      emit("status", "Your draft could not be read. Please try again.");
+      return;
+    }
+    emit("status", "Saving draft…");
+    result.type = "project-save";
+    result.requestId = requestId;
+    sendToParent(result);
+  }
+  function acknowledgeProject(m) {
+    var saved =
+      m.type === "project-saved"
+        ? { signature: observedProjects[m.revision] }
+        : pendingSaves[m.requestId];
+    if (!saved || !saved.signature) {
+      return;
+    }
+    delete pendingSaves[m.requestId];
+    if (!m.ok) {
+      emit(
+        "status",
+        m.message || "Your draft could not be saved. Please try again."
+      );
+      return;
+    }
+    if (saved.signature === JSON.stringify(snapshot())) {
+      savedSignature = saved.signature;
+      $.publish(Events.PISKEL_SAVED);
+      emit("status", m.message || "Draft saved privately.");
+      emit("dirty", false);
+    }
+  }
+  function validateProject(project) {
+    if (
+      !project ||
+      project.version !== 1 ||
+      typeof project.name !== "string" ||
+      project.name.length > 200 ||
+      JSON.stringify(project).length > 12 * 1024 * 1024
+    ) {
+      throw new Error("Invalid project envelope");
+    }
+    var data = project.piskel && project.piskel.piskel;
+    if (
+      !project.piskel ||
+      project.piskel.modelVersion !== Constants.MODEL_VERSION ||
+      !data ||
+      !sizeAllowed(data.width, data.height) ||
+      !Number.isFinite(data.fps) ||
+      data.fps < 0 ||
+      data.fps > 24 ||
+      !Array.isArray(data.layers) ||
+      !data.layers.length ||
+      data.layers.length > 64
+    ) {
+      throw new Error("Invalid project dimensions or layers");
+    }
+    var frameCount;
+    data.layers.forEach(function (serialized) {
+      var layer = JSON.parse(serialized);
+      if (
+        !Number.isInteger(layer.frameCount) ||
+        layer.frameCount < 1 ||
+        layer.frameCount > 2048 ||
+        (frameCount && frameCount !== layer.frameCount) ||
+        !Array.isArray(layer.chunks) ||
+        !layer.chunks.length ||
+        layer.chunks.length > layer.frameCount
+      ) {
+        throw new Error("Invalid project frames");
+      }
+      frameCount = layer.frameCount;
+      var seen = {};
+      layer.chunks.forEach(function (chunk) {
+        if (
+          !/^data:image\/png;base64,[A-Za-z0-9+/]+=*$/.test(
+            chunk.base64PNG || ""
+          ) ||
+          !Array.isArray(chunk.layout) ||
+          !chunk.layout.length
+        ) {
+          throw new Error("Invalid project image");
+        }
+        // Validate the PNG dimensions before handing compressed input to Image.
+        var header = atob(chunk.base64PNG.split(",")[1].slice(0, 44));
+        function uint32(offset) {
+          return [0, 1, 2, 3].reduce(function (value, i) {
+            return value * 256 + header.charCodeAt(offset + i);
+          }, 0);
+        }
+        if (
+          header.charCodeAt(0) !== 137 ||
+          header.slice(1, 4) !== "PNG" ||
+          header.slice(12, 16) !== "IHDR" ||
+          uint32(16) !== data.width * chunk.layout.length ||
+          !Array.isArray(chunk.layout[0]) ||
+          uint32(20) !== data.height * chunk.layout[0].length
+        ) {
+          throw new Error("Invalid project image dimensions");
+        }
+        chunk.layout.forEach(function (column) {
+          if (
+            !Array.isArray(column) ||
+            !column.length ||
+            column.length !== chunk.layout[0].length
+          ) {
+            throw new Error("Invalid frame layout");
+          }
+          column.forEach(function (index) {
+            if (
+              !Number.isInteger(index) ||
+              index < 0 ||
+              index >= frameCount ||
+              seen[index]
+            ) {
+              throw new Error("Invalid frame index");
+            }
+            seen[index] = true;
+          });
+        });
+      });
+      if (Object.keys(seen).length !== frameCount) {
+        throw new Error("Missing project frames");
+      }
+    });
+    if (
+      data.hiddenFrames &&
+      (!Array.isArray(data.hiddenFrames) ||
+        data.hiddenFrames.some(function (index) {
+          return !Number.isInteger(index) || index < 0 || index >= frameCount;
+        }))
+    ) {
+      throw new Error("Invalid hidden frame");
+    }
+    if (
+      project.original &&
+      (!/^[A-Za-z0-9_-]{1,32}$/.test(project.original.slug || "") ||
+        !/^image\/(gif|jpeg|png)$/.test(project.original.mime || "") ||
+        !/^[A-Za-z0-9+/]+=*$/.test(project.original.dataBase64 || "") ||
+        typeof project.original.baseline !== "string")
+    ) {
+      throw new Error("Invalid original image");
+    }
+  }
+  function loadProject(m) {
+    var sequence = ++loadSequence;
+    var timer;
+    var finished = false;
+    function finish(ok, message) {
+      if (sequence !== loadSequence || finished) {
+        return;
+      }
+      finished = true;
+      clearTimeout(timer);
+      loadingProject = false;
+      sendToParent({
+        type: "project-load-result",
+        requestId: m.requestId,
+        ok: ok,
+        error: ok ? null : "invalidProject",
+        message: message
+      });
+      if (ok) {
+        notifyProjectChanged();
+        scheduleLive();
+      }
+    }
+    try {
+      validateProject(m.project);
+      var project = JSON.parse(JSON.stringify(m.project));
+      loadingProject = true;
+      timer = setTimeout(function () {
+        finish(
+          false,
+          "This draft could not be opened. Your current drawing is still here."
+        );
+        loadSequence += 1;
+      }, 15000);
+      pskl.utils.serialization.Deserializer.deserialize(
+        project.piskel,
+        function (piskel) {
+          if (sequence !== loadSequence) {
+            return;
+          }
+          pskl.app.piskelController.setPiskel(piskel);
+          setProvenance(project.based_on, project.origin);
+          original = project.original || null;
+          setName(project.name);
+          pskl.app.piskelController.setFPS(piskel.getFPS());
+          savedSignature = null;
+          finish(true);
+        },
+        function () {
+          finish(
+            false,
+            "This draft could not be opened. Your current drawing is still here."
+          );
+        }
+      );
+    } catch (_error) {
+      finish(false, "This draft is invalid or uses an unsupported size.");
+    }
+  }
+  function newProject(m) {
+    if (!sizeAllowed(m.width, m.height)) {
+      sendToParent({
+        type: "project-load-result",
+        requestId: m.requestId,
+        ok: false,
+        error: "invalidSize",
+        message: sizeHint()
+      });
+      return;
+    }
+    loadSequence += 1;
+    loadingProject = true;
+    var piskel = new pskl.model.Piskel(
+      m.width,
+      m.height,
+      10,
+      new pskl.model.piskel.Descriptor("", "")
+    );
+    var layer = new pskl.model.Layer("Layer 1");
+    layer.addFrame(new pskl.model.Frame(m.width, m.height));
+    piskel.addLayer(layer);
+    pskl.app.piskelController.setPiskel(piskel);
+    pskl.app.piskelController.setFPS(piskel.getFPS());
+    setProvenance(null, null);
+    original = null;
+    setName("");
+    loadingProject = false;
+    savedSignature = null;
+    sendToParent({
+      type: "project-load-result",
+      requestId: m.requestId,
+      ok: true
+    });
+    notifyProjectChanged();
+    scheduleLive();
+  }
+  function exportImage(callback) {
+    try {
+      var project = supportsProjects() ? snapshot() : null;
+      if (project && unchangedOriginal(project)) {
+        callback(null, {
+          name: iconName,
+          mime: project.original.mime,
+          dataBase64: project.original.dataBase64,
+          unchangedOriginal: true,
+          originalSlug: project.original.slug
+        });
+        return;
+      }
+      var Gif = pskl.controller.settings.exportimage.GifExportController;
+      new Gif(pskl.app.piskelController).renderAsImageDataAnimatedGIF(
+        1,
+        pskl.app.piskelController.getFPS(),
+        function (uri) {
+          callback(null, {
+            name: iconName,
+            mime: "image/gif",
+            dataBase64: String(uri).split(",")[1] || "",
+            unchangedOriginal: false,
+            originalSlug:
+              project && project.original ? project.original.slug : null
+          });
+        }
+      );
+    } catch (_error) {
+      callback("The image could not be exported. Please try again.");
+    }
   }
 
   // ---- export the current sprite as a GIF and hand the bytes to AWTRIX ------
   function saveToAwtrix(name) {
+    var origin = currentOrigin();
+    var base = basedOn;
     var Gif = pskl.controller.settings.exportimage.GifExportController;
     var ctrl = new Gif(pskl.app.piskelController);
     ctrl.renderAsImageDataAnimatedGIF(
@@ -37924,10 +38808,240 @@ ns.ToolsHelper = {
           type: "save",
           name: name || "icon",
           mime: "image/gif",
-          dataBase64: String(gifDataUri).split(",")[1] || ""
+          dataBase64: String(gifDataUri).split(",")[1] || "",
+          origin: origin,
+          based_on: base
         });
       }
     );
+  }
+
+  // ---- submit the current sprite to the shared icon database ----------------
+  // Hub publication always goes through the parent workspace. The direct
+  // endpoint remains for legacy device/standalone embeddings without a broker.
+  var ICONAPI_DEFAULT = "https://awtrix.de/icons/";
+
+  function iconApiUrl() {
+    var url = query("iconapi") || ICONAPI_DEFAULT;
+    return url.charAt(url.length - 1) === "/" ? url : url + "/";
+  }
+
+  function base64ToBlob(base64, mime) {
+    var binary = atob(base64);
+    var bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return new Blob([bytes], { type: mime });
+  }
+
+  // Every code the submit endpoint can answer with. tooManyFrames is never sent
+  // - frames are not a limit, a 153-frame icon runs fine on a TC001 - but a
+  // client with no name for a code prints the code, so the vocabulary is whole.
+  var SUBMIT_ERRORS = {
+    badFormat: "Not an image the database accepts",
+    tooLarge: "The file is too large",
+    badName: "That name cannot be used",
+    descriptiveNameRequired:
+      "Give your icon a descriptive name with at least one letter.",
+    tooBig: "Too large for an icon",
+    tooManyFrames: "Too many frames",
+    rateLimited: "Too many submissions - try again later",
+    duplicate: "Already in the database",
+    notLoggedIn: "Sign in on the AWTRIX Hub to publish"
+  };
+
+  function reportSubmission(ok, body, context) {
+    // The icon goes live immediately - moderation is after the fact - so there
+    // is no review to wait for.
+    if (ok && body.ok) {
+      emit(
+        "status",
+        body.status === "existing"
+          ? "This icon is already in the Hub. Use " + body.slug
+          : body.status === "updated"
+            ? "Updated " + body.slug
+            : "Published as " + body.slug,
+        body.pr ? { url: body.pr, label: "Open the icon" } : null
+      );
+      if (context && /^[A-Za-z0-9_-]{1,32}$/.test(body.slug || "")) {
+        var hub = new URL(iconApiUrl(), window.location.href).href;
+        var finish = function (origin) {
+          if (context.descriptor === descriptor()) {
+            setProvenance(body.slug, origin);
+            if (context.project) {
+              original = {
+                slug: body.slug,
+                mime: context.mime || "image/gif",
+                dataBase64: context.dataBase64,
+                baseline: contentSignature(context.project.piskel)
+              };
+              scheduleProjectChanged();
+            }
+          }
+          sendToParent({
+            type: "published",
+            requestId: context.requestId,
+            name: context.name,
+            slug: body.slug,
+            hub: hub,
+            sha256: body.sha256,
+            origin: origin,
+            mime: context.mime || "image/gif",
+            dataBase64: context.dataBase64,
+            status: body.status
+          });
+        };
+        if (body.origin) {
+          finish(body.origin);
+        } else {
+          localHash(context.dataBase64)
+            .then(function (hash) {
+              finish(hash ? { hub: hub, slug: body.slug, sha256: hash } : null);
+            })
+            .catch(function () {
+              finish(null);
+            });
+        }
+      }
+      return;
+    }
+    // The host can offer sign-in without discarding the private drawing.
+    if (body.error === "notLoggedIn") {
+      emit(
+        "status",
+        body.message || SUBMIT_ERRORS.notLoggedIn,
+        body.pr ? { url: body.pr, label: "Open the Hub" } : null
+      );
+      return;
+    }
+    if (body.error === "duplicate" && body.slug) {
+      emit(
+        "status",
+        "This icon is already in the Hub. Use " + body.slug,
+        body.pr ? { url: body.pr, label: "Open the icon" } : null
+      );
+      return;
+    }
+    // `message` is the Hub's own human sentence and outranks the bare code.
+    emit(
+      "status",
+      "Submit failed: " +
+        (body.message ||
+          SUBMIT_ERRORS[body.error] ||
+          body.error ||
+          "unknown error")
+    );
+  }
+
+  function publicationNameError(name) {
+    return /\p{L}/u.test(String(name || "").trim())
+      ? ""
+      : SUBMIT_ERRORS.descriptiveNameRequired;
+  }
+
+  function saveToCloud(name, options) {
+    options = options || {};
+    name = String(name || "").trim();
+    var nameError = publicationNameError(name);
+    if (nameError) {
+      emit("status", nameError);
+      return;
+    }
+    if (pendingPublication) {
+      emit("status", "Publishing…");
+      return;
+    }
+    currentOrigin();
+    var context = {
+      requestId: "publish-" + ++publicationSequence,
+      name: name,
+      based_on: basedOn,
+      descriptor: descriptor(),
+      project: supportsProjects() ? snapshot() : null,
+      action: options.action === "update" ? "update" : "publish",
+      slug: options.slug || null,
+      expected_sha256: options.expected_sha256 || null
+    };
+    pendingPublication = context;
+    context.timeout = setTimeout(function () {
+      if (pendingPublication === context) {
+        pendingPublication = null;
+        emit(
+          "status",
+          "The Hub has not replied. Your draft is still here; please try again."
+        );
+      }
+    }, 60000);
+    exportImage(function (error, image) {
+      if (pendingPublication !== context) {
+        return;
+      }
+      if (error) {
+        clearTimeout(context.timeout);
+        pendingPublication = null;
+        emit("status", error);
+        return;
+      }
+      context.dataBase64 = image.dataBase64;
+      context.mime = image.mime;
+      context.unchangedOriginal = image.unchangedOriginal;
+      context.originalSlug = image.originalSlug;
+      if (publishViaParent) {
+        sendToParent({
+          type: "publish",
+          requestId: context.requestId,
+          name: context.name,
+          mime: context.mime,
+          dataBase64: context.dataBase64,
+          based_on: context.based_on,
+          action: context.action,
+          slug: context.slug,
+          expected_sha256: context.expected_sha256,
+          unchangedOriginal: context.unchangedOriginal,
+          originalSlug: context.originalSlug,
+          project: context.project
+        });
+        return;
+      }
+      var form = new FormData();
+      form.append(
+        "file",
+        base64ToBlob(context.dataBase64, "image/gif"),
+        "icon.gif"
+      );
+      form.append("name", context.name);
+      form.append("source", "piskel");
+      form.append("agree", "1");
+      form.append("response", "resolve");
+      if (context.based_on) {
+        form.append("based_on", context.based_on);
+      }
+      fetch(iconApiUrl() + "submit", {
+        method: "POST",
+        body: form,
+        redirect: "error"
+      })
+        .then(function (response) {
+          return response
+            .json()
+            .catch(function () {
+              return {};
+            })
+            .then(function (body) {
+              reportSubmission(response.ok, body, context);
+            });
+        })
+        .catch(function () {
+          emit("status", "The Hub could not be reached. Please try again.");
+        })
+        .finally(function () {
+          clearTimeout(context.timeout);
+          if (pendingPublication === context) {
+            pendingPublication = null;
+          }
+        });
+    });
   }
 
   // ---- name of the icon currently in the editor -----------------------------
@@ -37941,42 +39055,127 @@ ns.ToolsHelper = {
   }
 
   // ---- load GIF/JPEG bytes coming back from AWTRIX into the editor -----------
-  function loadIntoEditor(mime, dataBase64) {
+  function loadIntoEditor(mime, dataBase64, base, origin, name, requestId) {
+    var sequence = ++loadSequence;
+    var replied = false;
+    function acknowledge(ok) {
+      if (replied) {
+        return;
+      }
+      replied = true;
+      if (requestId != null) {
+        sendToParent({
+          type: "icon-load-result",
+          requestId: requestId,
+          ok: ok,
+          error: ok ? null : "imageLoadFailed",
+          message: ok
+            ? "Image opened."
+            : "This image could not be opened. Your current drawing is still here."
+        });
+      }
+    }
     var img = new Image();
-    img.onload = function () {
-      pskl.app.importService.newPiskelFromImage(
-        img,
-        {
-          importType: "single",
-          // the icon *is* the sprite (8x8 or 32x8); one frame per still image,
-          // animated GIFs are sliced into frames by SuperGif inside the service.
-          frameSizeX: img.width,
-          frameSizeY: img.height,
-          frameOffsetX: 0,
-          frameOffsetY: 0,
-          smoothing: false,
-          name: "icon"
-        },
-        function (piskel) {
-          pskl.app.piskelController.setPiskel(piskel);
-          if (pskl.app.previewController) {
-            pskl.app.previewController.setFPS(piskel.getFPS());
-          }
-        }
+    loadingProject = true;
+    var timer = setTimeout(function () {
+      img.onerror();
+    }, 15000);
+    img.onerror = function () {
+      if (sequence !== loadSequence) {
+        return;
+      }
+      clearTimeout(timer);
+      loadSequence += 1;
+      loadingProject = false;
+      acknowledge(false);
+      emit(
+        "status",
+        "This image could not be opened. Your current drawing is still here."
       );
+    };
+    img.onload = function () {
+      if (sequence !== loadSequence) {
+        return;
+      }
+      try {
+        pskl.app.importService.newPiskelFromImage(
+          img,
+          {
+            importType: "single",
+            // the icon *is* the sprite (8x8 or 32x8); one frame per still image,
+            // animated GIFs are sliced into frames by SuperGif inside the service.
+            frameSizeX: img.width,
+            frameSizeY: img.height,
+            frameOffsetX: 0,
+            frameOffsetY: 0,
+            smoothing: false,
+            name: stripExt(name) || "icon"
+          },
+          function (piskel) {
+            if (sequence !== loadSequence) {
+              return;
+            }
+            clearTimeout(timer);
+            pskl.app.piskelController.setPiskel(piskel);
+            setProvenance(base, origin);
+            setLoadedName(name || "");
+            pskl.app.piskelController.setFPS(piskel.getFPS());
+            var baseline = supportsProjects()
+              ? contentSignature(nativeProject())
+              : null;
+            function finishOriginal(isRegistryOriginal) {
+              if (sequence !== loadSequence) {
+                return;
+              }
+              original =
+                isRegistryOriginal && basedOn
+                  ? {
+                      slug: basedOn,
+                      mime: mime || "image/gif",
+                      dataBase64: dataBase64,
+                      baseline: baseline
+                    }
+                  : null;
+              loadingProject = false;
+              acknowledge(true);
+              scheduleProjectChanged();
+              scheduleLive();
+            }
+            if (
+              supportsProjects() &&
+              !isHub() &&
+              basedOn &&
+              origin &&
+              origin.sha256
+            ) {
+              localHash(dataBase64)
+                .then(function (hash) {
+                  finishOriginal(hash === origin.sha256);
+                })
+                .catch(function () {
+                  finishOriginal(false);
+                });
+            } else {
+              finishOriginal(isHub() && !!basedOn);
+            }
+          }
+        );
+      } catch (_error) {
+        img.onerror();
+      }
     };
     img.src = "data:" + (mime || "image/gif") + ";base64," + dataBase64;
   }
 
   // ---- live mirror to the physical matrix -----------------------------------
-  // While on: push the current frame as a compact base64 RGB bitmap on every
-  // change (crisp, size-exact, one JSON string); when the preview is actually
-  // animating (FPS > 0, more than one visible frame, not paused) push the whole
-  // sprite as a looping GIF instead. AWTRIX holds it on the panel and replaces
-  // it in place.
+  // While on: push the current frame on every change; when the preview is
+  // actually animating (FPS > 0, more than one visible frame, not paused) push
+  // the whole sprite as a looping GIF instead. AWTRIX holds it on the panel and
+  // replaces it in place.
   var liveOn = false,
     liveTimer = null,
-    liveEvents = null;
+    liveEvents = null,
+    liveSequence = 0;
   function isAnimating() {
     try {
       return (
@@ -37990,7 +39189,7 @@ ns.ToolsHelper = {
   }
   // base64 of the canvas' RGB888 bytes, row-major. A raw pixel array (256 ints
   // for 32x8, 1024 for 32x32) overflows the device's JSON document pool and
-  // comes back 413 payloadTooLarge; this is one JSON string of ~w*h*4/3 bytes.
+  // comes back 413 payloadTooLarge; this is one JSON string of w*h*4 characters.
   function frameToBase64Rgb(canvas) {
     var d = canvas
       .getContext("2d")
@@ -38002,33 +39201,80 @@ ns.ToolsHelper = {
     return btoa(bin);
   }
 
-  function sendLiveBitmap() {
-    var pc = pskl.app.piskelController;
-    var canvas = pc.renderFrameAt(pc.getCurrentFrameIndex(), true);
-    sendToParent({
-      type: "live",
-      mode: "bitmap",
-      w: canvas.width,
-      h: canvas.height,
-      dataBase64: frameToBase64Rgb(canvas)
-    });
-  }
-
-  // One AWTRIX notification body caps at ~8 KB on the device. Both payloads sit
-  // far below that — a base64 bitmap is ~1 KB at 32x8, and the exact-palette GIF
-  // encoder keeps a 7-frame 32x8 animation under 600 bytes. The guard only
-  // catches pathological sprites (hundreds of frames, or a photographic import
-  // that falls back to the quantizing encoder); those mirror as a still frame
-  // rather than failing the request.
+  // One AWTRIX notification body caps at 8 KB on an ESP32, and every host sends
+  // the image inside such a body. A 32x8 bitmap is ~1 KB and the exact-palette
+  // GIF encoder keeps a 7-frame 32x8 animation under 600 bytes; raw RGB passes
+  // the cap from about 1750 pixels on (64x32, 128x16), a many-frame animation
+  // sooner.
   var LIVE_BODY_MAX = 7000;
 
-  // A still sprite goes as a compact base64 bitmap (the AWTRIX `db` command's
-  // string form). A running animation goes as a looping GIF, which the device
-  // animates on its own — a single still bitmap could not.
+  function fitsLive(b64) {
+    return typeof b64 === "string" && b64.length <= LIVE_BODY_MAX;
+  }
+
+  // The current frame, as a base64 bitmap (the AWTRIX `db` command's string
+  // form, exact and cheapest to draw) or, when that is too large, as a one-frame
+  // GIF, which pixel art shrinks far below raw RGB. When neither fits, the host
+  // hears live-too-large with the reason: too many pixels for one body, or too
+  // many colours for the exact-palette GIF.
+  //
+  // `fromAnimation` marks a frame that stands in for an animation too large to
+  // send whole, so the host can say why the display does not animate.
+  //
+  // Hosts before protocol 2 (AWTRIX web UIs already in the field load this same
+  // editor) get what they always got: the bitmap, whatever its size. Their
+  // device refuses an oversized body, and they show that refusal.
+  function stillLive(fromAnimation) {
+    var pc = pskl.app.piskelController;
+    var canvas = pc.renderFrameAt(pc.getCurrentFrameIndex(), true);
+    var bitmap = frameToBase64Rgb(canvas);
+    var still = fromAnimation && hostProtocol >= 2;
+    if (hostProtocol < 2 || fitsLive(bitmap)) {
+      return withStill(
+        {
+          type: "live",
+          mode: "bitmap",
+          w: canvas.width,
+          h: canvas.height,
+          dataBase64: bitmap
+        },
+        still
+      );
+    }
+    var gif = pskl.utils.GifEncoder.encodeBase64({
+      width: canvas.width,
+      height: canvas.height,
+      frames: [canvas],
+      delayMs: 1000,
+      repeat: 0
+    });
+    if (gif && fitsLive(gif)) {
+      return withStill(
+        { type: "live", mode: "gif", mime: "image/gif", dataBase64: gif },
+        still
+      );
+    }
+    return {
+      type: "live-too-large",
+      w: canvas.width,
+      h: canvas.height,
+      reason: gif ? "size" : "colors"
+    };
+  }
+  function withStill(message, still) {
+    if (still) {
+      message.still = true;
+    }
+    return message;
+  }
+
+  // A running animation goes as a looping GIF, which the device animates on its
+  // own; when it is too large, the current frame goes instead.
   function pushLiveNow() {
     if (!liveOn) {
       return;
     }
+    var sequence = ++liveSequence;
     try {
       if (isAnimating()) {
         var pc = pskl.app.piskelController;
@@ -38038,20 +39284,23 @@ ns.ToolsHelper = {
           pc.getFPS(),
           function (uri) {
             var b64 = String(uri).split(",")[1] || "";
-            if (b64.length > LIVE_BODY_MAX) {
-              sendLiveBitmap(); // animation too big for one notification
-            } else {
-              sendToParent({
-                type: "live",
-                mode: "gif",
-                mime: "image/gif",
-                dataBase64: b64
-              });
+            if (!liveOn || sequence !== liveSequence) {
+              return;
             }
+            sendToParent(
+              fitsLive(b64)
+                ? {
+                    type: "live",
+                    mode: "gif",
+                    mime: "image/gif",
+                    dataBase64: b64
+                  }
+                : stillLive(true)
+            );
           }
         );
       } else {
-        sendLiveBitmap();
+        sendToParent(stillLive(false));
       }
     } catch (_e) {
       /* editor not ready yet */
@@ -38067,7 +39316,11 @@ ns.ToolsHelper = {
     liveTimer = setTimeout(pushLiveNow, 250); // debounce: the device serves one request at a time
   }
   function setLive(on) {
+    if (liveOn === on) {
+      return;
+    }
     liveOn = on;
+    liveSequence += 1;
     // Reflect the state on the transport's Live button (the primary control).
     var btn = document.querySelector(".awtrix-live-toggle");
     if (btn) {
@@ -38080,6 +39333,8 @@ ns.ToolsHelper = {
       Events.PISKEL_RESET,
       Events.FRAME_SIZE_CHANGED,
       Events.FPS_CHANGED,
+      Events.HISTORY_STATE_SAVED,
+      Events.HISTORY_STATE_LOADED,
       Events.PLAYBACK_TOGGLED // play → looping GIF, stop → still frame
     ];
     if (on) {
@@ -38104,6 +39359,9 @@ ns.ToolsHelper = {
     if (!m || m.ns !== AWTRIX_NS) {
       return;
     }
+    if (parentOrigin !== "*" && parentOrigin !== e.origin) {
+      return;
+    }
     if (parentOrigin === "*") {
       parentOrigin = e.origin;
     } // pin replies to the real parent
@@ -38113,18 +39371,99 @@ ns.ToolsHelper = {
         applyTheme(m.theme);
         break;
       case "config":
-        if (Array.isArray(m.sizes) && m.sizes.length) {
-          allowedSizes = m.sizes;
+        if (m.host === "hub") {
+          hostIsHub = true;
+        }
+        publishViaParent = isHub() || m.publishViaParent === true;
+        draftViaParent =
+          isHub() || m.draftViaParent === true || m.projectViaParent === true;
+        emit("config");
+        if (Number.isInteger(m.protocol) && m.protocol > 0) {
+          hostProtocol = m.protocol;
+        }
+        var presets = Array.isArray(m.sizes) ? readSizes(m.sizes) : [];
+        if (presets.length) {
+          allowedSizes = presets;
+        }
+        if (m.max !== undefined) {
+          maxSize = parseSize(m.max);
+        }
+        if (isHub()) {
+          setLive(true);
+        }
+        break;
+      case "project-request":
+        if (supportsProjects()) {
+          projectReply("project-result", m.requestId);
+        }
+        break;
+      case "project-load":
+        if (supportsProjects()) {
+          loadProject(m);
+        }
+        break;
+      case "project-new":
+        if (supportsProjects()) {
+          newProject(m);
+        }
+        break;
+      case "project-name":
+        if (supportsProjects()) {
+          setName(m.name);
+        }
+        break;
+      case "project-save-result":
+      case "project-saved":
+        if (supportsProjects()) {
+          acknowledgeProject(m);
+        }
+        break;
+      case "export-request":
+        if (supportsProjects()) {
+          exportImage(function (error, result) {
+            sendToParent(
+              Object.assign(
+                {
+                  type: "export-result",
+                  requestId: m.requestId,
+                  ok: !error,
+                  error: error ? "exportFailed" : null,
+                  message: error
+                },
+                result || {}
+              )
+            );
+          });
+        }
+        break;
+      case "publish-request":
+        if (supportsProjects()) {
+          saveToCloud(m.name, m);
         }
         break;
       case "list-result":
         emit("list", m.files || []);
         break;
       case "load-result":
-        if (m.name) {
-          setLoadedName(m.name);
+        loadIntoEditor(
+          m.mime,
+          m.dataBase64,
+          m.based_on,
+          m.origin,
+          m.name,
+          m.requestId
+        );
+        break;
+      case "publish-result":
+        if (
+          pendingPublication &&
+          m.requestId === pendingPublication.requestId
+        ) {
+          var completed = pendingPublication;
+          clearTimeout(completed.timeout);
+          pendingPublication = null;
+          reportSubmission(m.ok === true, m, completed);
         }
-        loadIntoEditor(m.mime, m.dataBase64);
         break;
       case "save-result":
         if (m.ok && m.name) {
@@ -38146,11 +39485,75 @@ ns.ToolsHelper = {
     }
   });
 
+  function canUpdatePublished() {
+    var origin = currentOrigin();
+    if (
+      isHub() ||
+      !publishViaParent ||
+      !origin ||
+      !/^[A-Za-z0-9_-]{1,32}$/.test(origin.slug || "") ||
+      !/^[a-f0-9]{64}$/.test(origin.sha256 || "")
+    ) {
+      return false;
+    }
+    try {
+      return (
+        new URL(origin.hub).href ===
+        new URL(iconApiUrl(), window.location.href).href
+      );
+    } catch (_error) {
+      return false;
+    }
+  }
+
   // ---- public API for the AWTRIX settings panel -----------------------------
   var api = {
     save: function (name) {
       emit("status", "Saving…");
-      saveToAwtrix(name);
+      if (isHub()) {
+        saveProject(name);
+      } else {
+        saveToAwtrix(name);
+      }
+    },
+    saveProject: saveProject,
+    isDirty: function () {
+      return (
+        supportsProjects() && savedSignature !== JSON.stringify(snapshot())
+      );
+    },
+    download: function () {
+      if (isHub()) {
+        sendToParent({ type: "download-request" });
+      } else {
+        saveToAwtrix(iconName);
+      }
+    },
+    publicationNameError: publicationNameError,
+    canUpdatePublished: canUpdatePublished,
+    updatePublished: function (name) {
+      if (!canUpdatePublished()) {
+        emit(
+          "status",
+          "Open your published icon from this Hub before updating it."
+        );
+        return;
+      }
+      var origin = currentOrigin();
+      saveToCloud(name, {
+        action: "update",
+        slug: origin.slug,
+        expected_sha256: origin.sha256
+      });
+    },
+    saveToCloud: function (name) {
+      if (isHub()) {
+        setName(name);
+        projectReply("publish-open");
+      } else {
+        emit("status", "Submitting…");
+        saveToCloud(name);
+      }
     },
     requestList: function () {
       sendToParent({ type: "list" });
@@ -38161,15 +39564,26 @@ ns.ToolsHelper = {
     getName: function () {
       return iconName;
     },
-    setName: function (name) {
-      iconName = stripExt(name);
-    },
+    setName: setName,
     setLive: setLive,
     isLiveOn: function () {
       return liveOn;
     },
     getSizes: function () {
       return allowedSizes.slice();
+    },
+    getMaxSize: function () {
+      return maxSize && { width: maxSize.width, height: maxSize.height };
+    },
+    isSizeAllowed: sizeAllowed,
+    sizeHint: sizeHint,
+    isHub: isHub,
+    supportsProjects: supportsProjects,
+    getTermsUrl: function () {
+      return new URL(
+        "../terms-of-service",
+        new URL(iconApiUrl(), window.location.href)
+      ).href;
     },
     on: on
   };
@@ -38180,22 +39594,47 @@ ns.ToolsHelper = {
     // Pre-paint theme/size come in via the query string so the editor looks
     // right before the first AWTRIX message arrives.
     applyTheme(query("theme") || "dark");
-    if (query("sizes")) {
-      allowedSizes = query("sizes").split(",");
+    var presets = readSizes(String(query("sizes") || "").split(","));
+    if (presets.length) {
+      allowedSizes = presets;
     }
+    maxSize = parseSize(query("max"));
 
     pskl.app.awtrixBridge = api;
+    originDescriptor = descriptor();
+    [
+      Events.HISTORY_STATE_SAVED,
+      Events.HISTORY_STATE_LOADED,
+      Events.PISKEL_RESET,
+      Events.PISKEL_DESCRIPTOR_UPDATED,
+      Events.FPS_CHANGED
+    ].forEach(function (event) {
+      $.subscribe(event, scheduleProjectChanged);
+    });
+    if (isHub()) {
+      document.documentElement.setAttribute("data-host", "hub");
+      var saveTool = document.querySelector('[data-setting="save"]');
+      if (saveTool) {
+        saveTool.setAttribute(
+          "title",
+          "Draft — save privately or download your drawing"
+        );
+      }
+    }
 
     // Live toggle lives in the transport dock, next to play/stop.
     var liveBtn = document.querySelector(".awtrix-live-toggle");
+    if (liveBtn && isHub()) {
+      liveBtn.hidden = true;
+    }
     if (liveBtn) {
       liveBtn.addEventListener("click", function () {
         setLive(!liveOn);
       });
     }
 
-    sendToParent({ type: "ready" });
+    sendToParent({ type: "ready", projectVersion: 1 });
   });
 })();
 
-//# sourceMappingURL=piskel-packaged-2026-08-06-06-01.js.map
+//# sourceMappingURL=piskel-packaged-2026-10-02-12-52.js.map

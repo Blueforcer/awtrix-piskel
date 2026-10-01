@@ -14,26 +14,44 @@ enableSafeMode: true
       rel="tooltip"
       data-placement="top"
       data-test-id="pen-size-picker"
+      role="radiogroup"
+      aria-label="Pen size"
     >
       <div
         class="pen-size-option size-picker-option"
         data-size="1"
         data-test-id="pen-size-1"
+        role="radio"
+        tabindex="0"
+        aria-checked="false"
+        aria-label="1 pixel pen"
       ></div>
       <div
         class="pen-size-option size-picker-option"
         data-size="2"
         data-test-id="pen-size-2"
+        role="radio"
+        tabindex="-1"
+        aria-checked="false"
+        aria-label="2 pixel pen"
       ></div>
       <div
         class="pen-size-option size-picker-option"
         data-size="3"
         data-test-id="pen-size-3"
+        role="radio"
+        tabindex="-1"
+        aria-checked="false"
+        aria-label="3 pixel pen"
       ></div>
       <div
         class="pen-size-option size-picker-option"
         data-size="4"
         data-test-id="pen-size-4"
+        role="radio"
+        tabindex="-1"
+        aria-checked="false"
+        aria-label="4 pixel pen"
       ></div>
     </div>
     <ul
@@ -53,6 +71,7 @@ enableSafeMode: true
           class="color"
           type="text"
           data-test-id="primary-color-picker"
+          aria-label="Primary drawing color"
         >
       </div>
       <div
@@ -66,6 +85,7 @@ enableSafeMode: true
           class="secondary-color-picker color"
           type="text"
           data-test-id="secondary-color-picker"
+          aria-label="Secondary drawing color"
         >
       </div>
       <div
@@ -74,6 +94,9 @@ enableSafeMode: true
         title="Swap colors (X)"
         rel="tooltip"
         data-placement="right"
+        role="button"
+        tabindex="0"
+        aria-label="Swap primary and secondary colors"
       ></div>
     </div>
   </div>
@@ -83,7 +106,7 @@ enableSafeMode: true
 
 <!-- Drawing tool icon-button -->
 <script type="text/template" id="drawingTool-item-template">
-  <li rel="tooltip" data-placement="{{tooltipposition}}" class="{{cssclass}}" data-tool-id="{{toolid}}" data-test-id="tool-{{toolid}}" title="{{title}}"></li>
+  <li rel="tooltip" data-placement="{{tooltipposition}}" class="{{cssclass}}" data-tool-id="{{toolid}}" data-test-id="tool-{{toolid}}" title="{{title}}" role="button" tabindex="0" aria-label="{{label}}" aria-pressed="false"></li>
 </script>
 </div>
 
@@ -105,7 +128,13 @@ data-test-id="frame-list"
     </div>
 
     <div class='column main-column'>
-      <div id="drawing-canvas-container" class="drawing-canvas-container canvas-container" data-test-id="drawing-canvas">
+      <p id="drawing-canvas-help" class="accessibility-only">
+        Pixel drawing canvas. Use a mouse or touch to draw. Choose tools with
+        the toolbar or their keyboard shortcuts. Undo and redo are available
+        from the keyboard shortcuts panel.
+      </p>
+      <div id="drawing-canvas-container" class="drawing-canvas-container canvas-container" data-test-id="drawing-canvas"
+           role="img" tabindex="0" aria-label="Pixel drawing canvas" aria-describedby="drawing-canvas-help">
         <div class="canvas-background"></div>
       </div>
     </div>
@@ -306,6 +335,7 @@ data-test-id="frame-list"
       <div class="pull-bottom cursor-coordinates"></div>
     </div>
   </div>
+  <div id="editor-accessibility-status" class="accessibility-only" role="status" aria-live="polite"></div>
 
   <div id="application-action-section" data-pskl-controller="settings" class="sticky-section right-sticky-section">
     <div class="sticky-section-wrap">
@@ -321,6 +351,8 @@ data-test-id="frame-list"
     rel="tooltip"
     data-placement="left"
     data-test-id="awtrix-play-toggle"
+    aria-pressed="false"
+    aria-label="Play or pause the animation"
   ></button>
   <button
     type="button"
@@ -330,6 +362,7 @@ data-test-id="frame-list"
     data-placement="left"
     aria-pressed="false"
     data-test-id="awtrix-live-toggle"
+    aria-label="Mirror the drawing on the AWTRIX display"
   ></button>
   <label
     class="awtrix-fps"
@@ -345,6 +378,7 @@ data-test-id="frame-list"
       max="24"
       step="1"
       data-test-id="fps-input"
+      aria-label="Animation frames per second"
     >
     <span class="awtrix-fps-unit">fps</span>
   </label>
@@ -358,6 +392,9 @@ data-test-id="frame-list"
   rel="tooltip"
   data-placement="left"
   data-test-id="onion-skin-toggle-button"
+  role="button"
+  tabindex="0"
+  aria-label="Show neighbouring animation frames"
 ></div>
 
 <div
@@ -366,6 +403,9 @@ data-test-id="frame-list"
   title="<span class='highlight'>PREFERENCES</span></br>"
   rel="tooltip"
   data-placement="left"
+  role="button"
+  tabindex="0"
+  aria-label="Preferences"
 ></div>
 
 <div
@@ -374,6 +414,9 @@ data-test-id="frame-list"
   title="<span class='highlight'>RESIZE</span></br>Resize the drawing area"
   rel="tooltip"
   data-placement="left"
+  role="button"
+  tabindex="0"
+  aria-label="Resize the drawing"
 ></div>
 
 <div
@@ -382,6 +425,9 @@ data-test-id="frame-list"
   title="<span class='highlight'>AWTRIX</span></br>Save to / open from the clock, live preview"
   rel="tooltip"
   data-placement="left"
+  role="button"
+  tabindex="0"
+  aria-label="Save, open and preview on AWTRIX"
 ></div>
 
 <div
@@ -390,6 +436,9 @@ data-test-id="frame-list"
   title="<span class='highlight'>EXPORT</span></br>Export as Image, as Spritesheet<br/>or as Animated GIF"
   rel="tooltip"
   data-placement="left"
+  role="button"
+  tabindex="0"
+  aria-label="Export the icon"
 ></div>
 </div>
 
@@ -1196,9 +1245,15 @@ data-test-id="frame-list"
 <div class="settings-section settings-section-resize awtrix-resize">
   <div class="settings-title">Matrix size</div>
   <div class="settings-item">
-    <button type="button" class="button button-primary resize-preset" data-width="8" data-height="8">8 × 8</button>
-    <button type="button" class="button button-primary resize-preset" data-width="32" data-height="8">32 × 8</button>
-    <div class="ghelp">Resizes the current sprite to a matrix size. Existing pixels are kept, anchored top-left.</div>
+    <div class="resize-presets" role="group" aria-label="Matrix sizes"></div>
+    <form class="resize-custom" novalidate hidden>
+      <label>Width<input class="textfield resize-width" type="number" min="1" step="1" inputmode="numeric" required /></label>
+      <span class="resize-times" aria-hidden="true">×</span>
+      <label>Height<input class="textfield resize-height" type="number" min="1" step="1" inputmode="numeric" required /></label>
+      <button type="submit" class="button">Resize</button>
+    </form>
+    <div class="resize-error" role="alert"></div>
+    <div class="ghelp">Existing pixels are kept, anchored top-left.</div>
   </div>
 </div>
 </script>
@@ -1208,15 +1263,28 @@ data-test-id="frame-list"
   <div class="settings-title">AWTRIX</div>
   <div class="settings-item">
     <label class="row" for="awtrix-name">Icon name</label>
-    <input id="awtrix-name" type="text" class="textfield" placeholder="icon name" spellcheck="false" autocomplete="off" />
+    <input id="awtrix-name" type="text" class="textfield" placeholder="e.g. Weather sun" aria-describedby="awtrix-name-hint" spellcheck="false" autocomplete="off" />
+    <p id="awtrix-name-hint">To publish, choose a descriptive name. A number alone is not a name.</p>
     <input type="button" class="button button-primary" id="awtrix-save" value="Save to AWTRIX" />
-    <div class="save-status" id="awtrix-status"></div>
+    <input type="button" class="button" id="awtrix-save-draft" value="Save private draft" hidden />
+    <input type="button" class="button" id="awtrix-download" value="Download image" hidden />
+    <input type="button" class="button" id="awtrix-save-cloud" value="Publish in Hub" />
+    <input type="button" class="button" id="awtrix-update-cloud" value="Update my published icon" aria-describedby="awtrix-update-hint" hidden />
+    <p id="awtrix-update-hint" hidden>Only the owner can update this published icon. Its ID stays the same, so scripts using it receive your changes. Publish in Hub creates a separate variation.</p>
+    <div class="save-status" id="awtrix-status" role="status" aria-live="polite"></div>
   </div>
+  <div class="settings-item awtrix-cloud-hint">
+    <span class="awtrix-device-hint">Saving keeps your drawing on your AWTRIX. Publish in Hub shares it with everyone.</span>
+    <span class="awtrix-hub-hint" hidden>Drafts stay private and keep all your layers and frames. Download an image to use elsewhere, or publish when you are ready.</span>
+    By publishing, you confirm you can share this image and accept the <a class="awtrix-terms" href="/terms-of-service" target="_blank" rel="noopener noreferrer">Hub terms</a>.
+  </div>
+  <div class="awtrix-open-section">
   <div class="settings-title">Open from AWTRIX</div>
   <div class="settings-item">
     <select id="awtrix-open-list">
       <option value="">Loading…</option>
     </select>
+  </div>
   </div>
 </div>
 </script>
@@ -1315,10 +1383,10 @@ data-test-id="frame-list"
   (function () {
 /**
  * This file is inlined into index.html via @@include('piskel-boot.js').
- * During build, the html-include vite plugin replaces -2026-08-06-06-01 with
+ * During build, the html-include vite plugin replaces -2026-10-02-12-52 with
  * the build timestamp (e.g. '-2026-04-05-12-19').
  */
-var version = "-2026-08-06-06-01";
+var version = "-2026-10-02-12-52";
 
 if (!window.piskelReadyCallbacks) {
   window.piskelReadyCallbacks = [];

@@ -57,7 +57,7 @@ input[type="range"] {
 
 a,
 a:visited {
-  color: gold;
+  color: var(--highlight-color);
 }
 
 body {
@@ -83,7 +83,7 @@ body {
 }
 
 .highlight {
-  color: gold;
+  color: var(--highlight-color);
 }
 
 .pull-top,
@@ -130,7 +130,7 @@ body {
  * TOOLTIPS
  */
 .tooltip-shortcut {
-  color: gold;
+  color: var(--highlight-color);
 }
 
 .tooltip-container {
@@ -258,7 +258,7 @@ body {
 }
 
 .cursor-coordinates {
-  color: gold;
+  color: var(--highlight-color);
   font-size: 12px;
   font-weight: bold;
   font-family: monospace;
@@ -486,7 +486,7 @@ body {
 }
 
 .textfield:focus {
-  border-color: gold;
+  border-color: var(--highlight-color);
   outline: none;
 }
 
@@ -512,11 +512,11 @@ body {
 }
 
 .button:hover {
-  color: gold;
+  color: var(--highlight-color);
 }
 
 .button-primary {
-  background-color: gold;
+  background-color: var(--highlight-color);
   color: black;
 }
 
@@ -593,7 +593,7 @@ body {
   background-color: #444;
   margin-right: 0;
   padding-right: 2px;
-  border-left: 3px solid gold;
+  border-left: 3px solid var(--highlight-color);
 }
 
 /************************************************************************************************/
@@ -617,7 +617,7 @@ body {
   text-transform: uppercase;
   border-bottom: 1px #aaa solid;
   padding-bottom: 5px;
-  color: gold;
+  color: var(--highlight-color);
 }
 
 .settings-description {
@@ -673,7 +673,7 @@ body {
 }
 
 .background-picker.selected {
-  border-color: gold;
+  border-color: var(--highlight-color);
 }
 
 .settings-opacity-input {
@@ -769,7 +769,7 @@ body {
 }
 
 .grid-colors-item.selected {
-  border-color: gold;
+  border-color: var(--highlight-color);
 }
 
 .settings-section-preferences > .settings-title {
@@ -1019,7 +1019,7 @@ body {
   position: absolute;
   height: 100%;
   width: 100%;
-  border: 3px solid gold;
+  border: 3px solid var(--highlight-color);
   box-sizing: border-box;
 }
 
@@ -1603,7 +1603,12 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
   box-shadow:
     inset 0 1px 0 0 #0d0e0f,
     inset 0 -1px 0 0 #3a3d42;
-  outline: none; /* no focus outline */
+  outline: none;
+}
+
+.color-picker-slider input[type="range"]:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
 }
 
 /* thumb */
@@ -1767,7 +1772,7 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
   -moz-box-sizing: border-box;
 
   border-radius: 3px;
-  border: 3px solid gold;
+  border: 3px solid var(--highlight-color);
   background: #444;
   overflow: auto;
 }
@@ -1791,7 +1796,7 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
 
 .dialog-head {
   width: 100%;
-  background: gold;
+  background: var(--highlight-color);
   margin: 0;
   padding: 10px;
   color: black;
@@ -1863,7 +1868,7 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
 }
 
 .browse-backups .browse-backups-disclaimer .backups-icon {
-  border: 1px solid gold;
+  border: 1px solid var(--highlight-color);
   flex-shrink: 0;
   width: 90px;
   height: 90px;
@@ -2007,7 +2012,7 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
 
 .local-piskel-list-head {
   font-weight: bold;
-  color: gold;
+  color: var(--highlight-color);
 }
 
 .local-piskel-load-button,
@@ -2020,7 +2025,7 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
   bottom: 10px;
   left: 10px;
 
-  color: gold;
+  color: var(--highlight-color);
   font-weight: bold;
   font-size: 1.25em;
   line-height: 20px;
@@ -2130,8 +2135,8 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
 }
 
 .cheatsheet-shortcut-editable .cheatsheet-key {
-  border-color: gold;
-  color: gold;
+  border-color: var(--highlight-color);
+  color: var(--highlight-color);
 }
 
 .cheatsheet-shortcut-editing .cheatsheet-key {
@@ -2157,7 +2162,7 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
   padding: 10px;
   overflow: hidden;
 
-  background-color: gold;
+  background-color: var(--highlight-color);
 }
 
 .cheatsheet-helptext {
@@ -2352,7 +2357,7 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
   transition: border-color 0.2s;
 }
 .create-palette-color:hover {
-  border: 1px solid gold;
+  border: 1px solid var(--highlight-color);
 }
 
 .colors-list-drop-proxy {
@@ -2360,17 +2365,17 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
 }
 
 .create-palette-new-color {
-  border: 2px dotted gold;
+  border: 2px dotted var(--highlight-color);
 
   border-radius: 2px;
   line-height: 40px;
   text-align: center;
   font-size: 20px;
-  color: gold;
+  color: var(--highlight-color);
 }
 
 .create-palette-color.selected {
-  border: 2px solid gold;
+  border: 2px solid var(--highlight-color);
 }
 
 .create-palette-remove-color {
@@ -2552,7 +2557,7 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
   font-style: italic;
   font-weight: normal;
   text-shadow: none;
-  color: gold;
+  color: var(--highlight-color);
 }
 
 [name="smooth-resize-checkbox"] {
@@ -2577,7 +2582,7 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
   box-sizing: border-box;
 
   padding: 10px;
-  border-right: 3px solid gold;
+  border-right: 3px solid var(--highlight-color);
 }
 
 .import-preview canvas {
@@ -2608,7 +2613,7 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
 
 .import-meta-label {
   border-radius: 2px 0 0 2px;
-  color: gold;
+  color: var(--highlight-color);
 }
 
 .import-meta-value {
@@ -2660,7 +2665,7 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
 
 .import-resize-option :checked + span,
 .insert-mode-option :checked + span {
-  color: gold;
+  color: var(--highlight-color);
 }
 
 .import-resize-option input,
@@ -2684,11 +2689,11 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
 }
 
 .import-resize-option :checked + span {
-  color: gold;
+  color: var(--highlight-color);
 }
 
 .import-resize-warning {
-  color: gold;
+  color: var(--highlight-color);
 }
 
 /**
@@ -2758,7 +2763,7 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
 }
 
 .dialog-performance-info-body sup {
-  color: gold;
+  color: var(--highlight-color);
   cursor: pointer;
 }
 
@@ -2806,7 +2811,7 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
 }
 
 #current-user-agent {
-  color: gold;
+  color: var(--highlight-color);
 }
 
 .user-message {
@@ -2822,7 +2827,7 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
   border-bottom: 0;
 
   color: #222;
-  background-color: gold;
+  background-color: var(--highlight-color);
 
   font-weight: bold;
   font-size: 13px;
@@ -2852,7 +2857,7 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
   padding: 10px;
   width: 360px;
   border-top-right-radius: 2px;
-  border: gold 2px solid;
+  border: var(--highlight-color) 2px solid;
   border-left: 0;
   border-bottom: 0;
   background-color: #444;
@@ -2880,8 +2885,8 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
   width: 300px;
   background: linear-gradient(
       to left,
-      gold,
-      gold
+      var(--highlight-color),
+      var(--highlight-color)
     )
     no-repeat -300px 0;
   background-color: black;
@@ -2968,7 +2973,7 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
 
 .layers-toggle-preview-enabled,
 .layers-toggle-preview-enabled:hover {
-  color: gold;
+  color: var(--highlight-color);
 }
 
 /**
@@ -3027,7 +3032,7 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
 .current-layer-item,
 .current-layer-item:hover {
   background: #333;
-  color: gold;
+  color: var(--highlight-color);
 }
 
 .palettes-list-container {
@@ -3168,7 +3173,7 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
   right: 0;
 
   background-color: black;
-  color: gold;
+  color: var(--highlight-color);
 
   font-family: Tahoma;
   font-size: 0.5em;
@@ -3259,7 +3264,7 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
 
 .preview-toggle-onion-skin-enabled,
 .preview-toggle-onion-skin-enabled:hover {
-  color: gold;
+  color: var(--highlight-color);
 }
 
 .preview-contextual-actions {
@@ -3302,16 +3307,16 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
 }
 
 .preview-contextual-action:hover {
-  color: gold;
-  border-color: gold;
+  color: var(--highlight-color);
+  border-color: var(--highlight-color);
 }
 
 /**
- * If the icon represents an enabled state, the border should always be gold.
+ * If the icon represents an enabled state, use the current theme accent.
  */
 .preview-contextual-action-enabled {
-  color: gold;
-  border-color: gold;
+  color: var(--highlight-color);
+  border-color: var(--highlight-color);
 }
 
 /**
@@ -3360,8 +3365,8 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
 
 .preview-drop-down .size-button-selected {
   opacity: 1;
-  color: gold;
-  border-color: gold;
+  color: var(--highlight-color);
+  border-color: var(--highlight-color);
   z-index: 5;
 }
 
@@ -3371,7 +3376,7 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
 }
 
 .open-popup-preview-button:hover {
-  border-color: gold;
+  border-color: var(--highlight-color);
 }
 
 /**
@@ -3427,7 +3432,7 @@ To change `display` (e.g. `display: inline-block;`), we suggest using a common C
 }
 
 .show-more .transformations-show-more-link {
-  color: gold;
+  color: var(--highlight-color);
 }
 
 /***
@@ -4010,8 +4015,8 @@ See http://bgrins.github.io/spectrum/themes/ for instructions.
 }
 
 .sp-palette .sp-thumb-el.sp-thumb-active {
-  border-color: gold;
-  box-shadow: 0 0 0px 1px gold;
+  border-color: var(--highlight-color);
+  box-shadow: 0 0 0px 1px var(--highlight-color);
 }
 
 .sp-input {
@@ -4247,7 +4252,7 @@ See http://bgrins.github.io/spectrum/themes/ for instructions.
 }
 
 .add-frame-action:hover {
-  border-color: gold;
+  border-color: var(--highlight-color);
 }
 
 .preview-tile {
@@ -4300,7 +4305,7 @@ See http://bgrins.github.io/spectrum/themes/ for instructions.
 }
 
 .preview-tile .tile-overlay.tile-count.toggled {
-  background-color: gold;
+  background-color: var(--highlight-color);
   color: black;
 }
 
@@ -4326,7 +4331,7 @@ See http://bgrins.github.io/spectrum/themes/ for instructions.
 }
 
 .preview-tile.selected {
-  border-color: gold;
+  border-color: var(--highlight-color);
 }
 
 .preview-tile.selected:after {
@@ -4335,7 +4340,7 @@ See http://bgrins.github.io/spectrum/themes/ for instructions.
   top: 38px;
   right: -9px;
   border: transparent 4px solid;
-  border-left-color: gold;
+  border-left-color: var(--highlight-color);
   border-width: 6px 0 6px 6px;
   border-style: solid;
 }
@@ -4345,13 +4350,13 @@ See http://bgrins.github.io/spectrum/themes/ for instructions.
  */
 
 .preview-tile-drop-proxy {
-  border: 3px dashed gold;
+  border: 3px dashed var(--highlight-color);
   background-color: rgba(255, 215, 0, 0.2);
 }
 
 .minimap-crop-frame {
   position: absolute;
-  border: 2px solid gold;
+  border: 2px solid var(--highlight-color);
   z-index: 100;
   box-sizing: border-box;
   -moz-box-sizing: border-box;
@@ -4402,7 +4407,7 @@ See http://bgrins.github.io/spectrum/themes/ for instructions.
 }
 
 .anchor-option.selected {
-  border: 3px solid gold;
+  border: 3px solid var(--highlight-color);
 }
 
 .anchor-option:before {
@@ -4418,7 +4423,7 @@ See http://bgrins.github.io/spectrum/themes/ for instructions.
   content: "";
   width: 4px;
   height: 4px;
-  background: gold;
+  background: var(--highlight-color);
 }
 
 .disabled .anchor-option.selected:before {
@@ -4438,24 +4443,24 @@ See http://bgrins.github.io/spectrum/themes/ for instructions.
 }
 
 .anchor-option[data-neighbor="bottom"]:before {
-  border-top-color: gold;
+  border-top-color: var(--highlight-color);
   margin-left: -4px;
 }
 
 .anchor-option[data-neighbor="left"]:before {
-  border-right-color: gold;
+  border-right-color: var(--highlight-color);
   margin-top: -4px;
   margin-left: -6px;
 }
 
 .anchor-option[data-neighbor="top"]:before {
-  border-bottom-color: gold;
+  border-bottom-color: var(--highlight-color);
   margin-top: -6px;
   margin-left: -4px;
 }
 
 .anchor-option[data-neighbor="right"]:before {
-  border-left-color: gold;
+  border-left-color: var(--highlight-color);
   margin-top: -4px;
 }
 
@@ -4564,11 +4569,11 @@ See http://bgrins.github.io/spectrum/themes/ for instructions.
 }
 
 .size-picker-option.selected:before {
-  background-color: gold;
+  background-color: var(--highlight-color);
 }
 
 .size-picker-option.selected {
-  border-color: gold;
+  border-color: var(--highlight-color);
 }
 
 .size-picker-option.labeled:before {
@@ -4593,7 +4598,7 @@ See http://bgrins.github.io/spectrum/themes/ for instructions.
   width: 100%;
   height: 1px;
   z-index: 0;
-  background-color: gold;
+  background-color: var(--highlight-color);
 }
 
 .tab-item {
@@ -4609,11 +4614,11 @@ See http://bgrins.github.io/spectrum/themes/ for instructions.
 
 .tab-item.selected,
 .tab-item:hover {
-  color: gold;
+  color: var(--highlight-color);
 }
 
 .tab-item.selected {
-  border-color: gold;
+  border-color: var(--highlight-color);
   border-bottom-color: #444;
   border-style: solid;
   border-width: 1px;
@@ -4653,45 +4658,62 @@ See http://bgrins.github.io/spectrum/themes/ for instructions.
 }
 
 /*
- * AWTRIX NG theme skin for the embedded Piskel fork.
+ * AWTRIX theme skin for the Piskel fork embedded by the Hub and device WebUI.
  *
  * Add this file LAST in `src/piskel-style-list.js` so it wins over Piskel's own
- * (hard-coded) colours, and make sure your Vite config does NOT run the
- * `gold` -> `gold` substitution on it (that plugin only needs
- * to touch the original variables.css). The AWTRIX web UI sets a `data-theme`
- * attribute on <html> ("dark" | "light") via the query string and postMessage;
- * these rules key off it.
+ * (hard-coded) colours. Both hosts set a `data-theme` attribute on <html>
+ * ("dark" | "light") via the query string and postMessage; these rules key off
+ * it.
  *
  * Piskel has no design-token layer, so this is a pragmatic override of the main
- * surfaces rather than an exhaustive reskin — extend the selectors to taste. The
- * palette below is AWTRIX NG's (GitHub-Primer-derived) token set, verbatim from
- * webui/index.html so the embed matches the host exactly.
+ * surfaces rather than an exhaustive reskin. The palette below is shared with
+ * the Hub and AWTRIX NG WebUI so the editor feels native in either embed.
  */
 
 :root[data-theme="dark"] {
-  --bg: #0d1117;
-  --card: #161b22;
-  --card2: #1c2129;
-  --border: #2d333b;
-  --fg: #e6edf3;
-  --dim: #8b949e;
-  --acc: #58a6ff;
-  --pri: #1f6feb;
-  --highlight-color: #58a6ff; /* Piskel accent */
-  --awx-letterbox: #1c2129; /* canvas letterbox — read by FrameRenderer */
+  --bg: #171717;
+  --card: #222221;
+  --card2: #292927;
+  --border: #373632;
+  --brd2: #302f2b;
+  --fg: #f3f1ec;
+  --dim: #a6a198;
+  --acc: #f5a568;
+  --pri: #f5a568;
+  --ok: #8fbf72;
+  --err: #ff9d90;
+  --warn: #ffb65c;
+  --con: #10100f;
+  --confg: #f3f1ec;
+  --sh: #0008;
+  --trk: #514e47;
+  --field: #1c1c1b;
+  --button-fg: #23170e;
+  --highlight-color: #f5a568;
+  --awx-letterbox: #10100f;
   color-scheme: dark;
 }
 :root[data-theme="light"] {
-  --bg: #ffffff;
-  --card: #f6f8fa;
-  --card2: #eaeef2;
-  --border: #d0d7de;
-  --fg: #1f2328;
-  --dim: #59636e;
-  --acc: #0969da;
-  --pri: #0969da;
-  --highlight-color: #0969da;
-  --awx-letterbox: #eaeef2; /* canvas letterbox — read by FrameRenderer */
+  --bg: #f5f4f1;
+  --card: #ffffff;
+  --card2: #f0eee9;
+  --border: #e2dfd8;
+  --brd2: #ebe8e2;
+  --fg: #242321;
+  --dim: #706c65;
+  --acc: #ac470f;
+  --pri: #ac470f;
+  --ok: #3d762e;
+  --err: #b3261e;
+  --warn: #945813;
+  --con: #181817;
+  --confg: #f7f3ec;
+  --sh: #342a201f;
+  --trk: #c8c3b9;
+  --field: #fcfbf9;
+  --button-fg: #ffffff;
+  --highlight-color: #ac470f;
+  --awx-letterbox: #181817;
   color-scheme: light;
 }
 
@@ -4722,6 +4744,11 @@ html[data-theme] .preview-list {
   border-color: var(--border);
 }
 
+html[data-theme] #drawer-container,
+html[data-theme] .settings {
+  box-shadow: 0 14px 40px var(--sh);
+}
+
 html[data-theme] .tool-icon:hover,
 html[data-theme] .preview-tile:hover {
   background-color: var(--card2);
@@ -4731,17 +4758,32 @@ html[data-theme] .preview-tile:hover {
    chip behind them even in the light theme. */
 html[data-theme="light"] .tool-icon,
 html[data-theme="light"] #application-action-section {
-  background-color: #30363d;
+  background-color: var(--con);
 }
 html[data-theme="light"] .tool-icon:hover {
-  background-color: #484f58;
+  background-color: color-mix(in srgb, var(--confg) 12%, var(--con));
 }
 
 /* Selected tool / active state --------------------------------------------- */
 html[data-theme] .tool-icon.selected,
 html[data-theme] .selected {
   color: var(--acc);
+  border-color: var(--acc);
   box-shadow: inset 0 0 0 1px var(--acc);
+}
+
+html[data-theme] .preview-tile.selected::after {
+  border-left-color: var(--acc);
+}
+
+html[data-theme] .preview-tile .tile-count.toggled {
+  background-color: var(--acc);
+  color: var(--button-fg);
+}
+
+html[data-theme] :is(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: 2px;
 }
 
 /* Text, labels, secondary text --------------------------------------------- */
@@ -4757,16 +4799,23 @@ html[data-theme] input,
 html[data-theme] select,
 html[data-theme] textarea,
 html[data-theme] button {
-  background: var(--bg);
+  background-color: var(--field);
   color: var(--fg);
   border: 1px solid var(--border);
   border-radius: 7px;
+}
+html[data-theme] button:hover {
+  border-color: var(--trk);
 }
 html[data-theme] button.button-primary,
 html[data-theme] .button-primary {
   background: var(--pri);
   border-color: var(--pri);
-  color: #fff;
+  color: var(--button-fg);
+}
+html[data-theme] button.button-primary:hover,
+html[data-theme] .button-primary:hover {
+  filter: brightness(1.06);
 }
 
 /* The drawing area sits on true black on the clock; keep the canvas backdrop
@@ -4792,9 +4841,28 @@ html[data-theme] #drawing-canvas-container {
   color: var(--dim);
   font-size: 12px;
 }
+/* The status line can carry a link - the published icon, or the Hub sign-in
+   page when the clock frames this editor. It has to read as clickable against
+   the dimmed text around it. */
+.awtrix-settings .save-status-link {
+  color: var(--fg);
+  text-decoration: underline;
+  white-space: nowrap;
+}
+.awtrix-settings .awtrix-cloud-hint {
+  color: var(--dim);
+  font-size: 11px;
+  line-height: 1.4;
+}
 
-/* Resize panel: two matrix-size buttons side by side. */
+/* Resize panel: the host's matrix sizes, two per row, and a width × height of
+   your own underneath when the host allows one. */
 .awtrix-resize .settings-item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.awtrix-resize .resize-presets {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -4802,12 +4870,55 @@ html[data-theme] #drawing-canvas-container {
 .awtrix-resize .resize-preset {
   flex: 1 1 40%;
   min-width: 88px;
+  font-variant-numeric: tabular-nums;
+}
+.awtrix-resize .resize-preset[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 2px var(--fg);
+}
+.awtrix-resize .resize-custom {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.awtrix-resize .resize-custom[hidden] {
+  display: none;
+}
+.awtrix-resize .resize-custom label {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  color: var(--dim);
+  font-weight: normal;
+}
+.awtrix-resize .resize-custom .textfield {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 9px;
+  font-variant-numeric: tabular-nums;
+}
+.awtrix-resize .resize-times {
+  padding-bottom: 8px;
+  color: var(--dim);
+}
+.awtrix-resize .resize-error:empty {
+  display: none;
+}
+.awtrix-resize .resize-error {
+  color: var(--err);
+  font-weight: normal;
 }
 .awtrix-resize .ghelp {
-  flex-basis: 100%;
   color: var(--dim);
   font-size: 12px;
-  margin-top: 2px;
+  font-weight: normal;
+}
+
+/* Embedded Hub controls use the host workspace for preview and private drafts. */
+[data-host="hub"] .awtrix-live-toggle,
+.awtrix-settings [hidden] {
+  display: none !important;
 }
 
 /**
@@ -4838,7 +4949,7 @@ html[data-theme] #drawing-canvas-container {
 :root {
   --awx-rail-w: 56px;
   --awx-dock-h: 116px;
-  --awx-hairline: var(--border, #2d333b);
+  --awx-hairline: var(--border, #373632);
   /* Monitor slot, and the panel built around it: the monitor plus its 1px
      border on each side, the panel padding and the panel's left hairline. The
      frames strip subtracts this so its last tiles never end up underneath the
@@ -4890,12 +5001,28 @@ html[data-theme] #drawing-canvas-container {
   max-width: none;
   overflow-y: auto;
   overflow-x: hidden;
-  background: var(--card, #161b22);
+  background: var(--card, #222221);
   border-right: 1px solid var(--awx-hairline);
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--dim, #a6a198) transparent;
 }
 #tool-section::-webkit-scrollbar {
-  display: none;
+  width: 6px;
+}
+#tool-section::-webkit-scrollbar-thumb {
+  background: var(--dim, #a6a198);
+  border-radius: 6px;
+}
+.accessibility-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 /* Kill the table-based vertical centering — the rail is a top-down list. */
 #tool-section .sticky-section-wrap,
@@ -4934,7 +5061,7 @@ html[data-theme] #drawing-canvas-container {
   margin: 12px 0 0;
   padding: 8px 0 10px;
   width: 100%;
-  background: var(--card, #161b22);
+  background: var(--card, #222221);
   border-top: 1px solid var(--awx-hairline);
   display: flex;
   flex-direction: column;
@@ -4960,7 +5087,7 @@ html[data-theme] #drawing-canvas-container {
   top: 0;
   bottom: var(--awx-dock-h);
   width: var(--awx-rail-w);
-  background: var(--card, #161b22);
+  background: var(--card, #222221);
   border-left: 1px solid var(--awx-hairline);
 }
 #application-action-section .sticky-section-wrap {
@@ -5013,13 +5140,13 @@ html[data-theme] #drawing-canvas-container {
   height: 100%;
   max-height: none;
   border-radius: 0;
-  background: var(--card, #161b22);
+  background: var(--card, #222221);
   border-left: 1px solid var(--awx-hairline);
   box-shadow: -12px 0 32px #0006;
 }
 .right-sticky-section .tool-icon.has-expanded-drawer {
-  background-color: var(--card2, #1c2129);
-  border-left: 3px solid var(--acc, #58a6ff);
+  background-color: var(--card2, #292927);
+  border-left: 3px solid var(--acc, #f5a568);
   padding-right: 0;
 }
 
@@ -5039,7 +5166,7 @@ html[data-theme] #drawing-canvas-container {
   height: var(--awx-dock-h);
   width: auto;
   padding: 0;
-  background: var(--card, #161b22);
+  background: var(--card, #222221);
   border-top: 1px solid var(--awx-hairline);
   z-index: 900;
 }
@@ -5116,9 +5243,9 @@ html[data-theme] #drawing-canvas-container {
   align-items: center;
   justify-content: center;
   padding: 0 var(--awx-monitor-pad);
-  background: var(--card, #161b22);
+  background: var(--card, #222221);
   border-left: 1px solid var(--awx-hairline);
-  box-shadow: inset 1px 0 0 var(--bg, #0d1117);
+  box-shadow: inset 1px 0 0 var(--bg, #171717);
 }
 
 /* Monitor: the running animation in a recessed display frame. Sized to nearly
@@ -5135,11 +5262,11 @@ html[data-theme] #drawing-canvas-container {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--awx-letterbox, #1c2129);
+  background: var(--awx-letterbox, #10100f);
   border: 1px solid var(--awx-hairline);
   border-radius: 8px;
   box-shadow:
-    inset 0 0 0 1px var(--bg, #0d1117),
+    inset 0 0 0 1px var(--bg, #171717),
     inset 0 2px 8px #0007;
 }
 .right-column .minimap-container #animated-preview-canvas-container {
@@ -5163,9 +5290,9 @@ html[data-theme] #drawing-canvas-container {
   height: 40px;
   border: none;
   border-radius: 50%;
-  background: var(--card2, #1c2129);
+  background: var(--card2, #292927);
   box-shadow: inset 0 0 0 1px var(--awx-hairline);
-  color: var(--fg, #e6edf3);
+  color: var(--fg, #f3f1ec);
   font-size: 14px;
   line-height: 40px;
   cursor: pointer;
@@ -5181,18 +5308,18 @@ html[data-theme] #drawing-canvas-container {
   left: 1px; /* optically center the triangle */
 }
 .awtrix-play-toggle.playing {
-  background: var(--pri, #1f6feb);
+  background: var(--pri, #f5a568);
   color: #fff;
   box-shadow:
-    inset 0 0 0 1px var(--pri, #1f6feb),
-    0 0 0 4px color-mix(in srgb, var(--pri, #1f6feb) 22%, transparent);
+    inset 0 0 0 1px var(--pri, #f5a568),
+    0 0 0 4px color-mix(in srgb, var(--pri, #f5a568) 22%, transparent);
 }
 .awtrix-play-toggle.playing::before {
   content: "⏸";
   left: 0;
 }
 .awtrix-play-toggle:hover {
-  color: var(--acc, #58a6ff);
+  color: var(--acc, #f5a568);
 }
 .awtrix-play-toggle.playing:hover {
   color: #fff;
@@ -5206,7 +5333,7 @@ html[data-theme] #drawing-canvas-container {
   height: 40px;
   border: none;
   border-radius: 50%;
-  background: var(--card2, #1c2129);
+  background: var(--card2, #292927);
   box-shadow: inset 0 0 0 1px var(--awx-hairline);
   cursor: pointer;
   padding: 0;
@@ -5227,23 +5354,23 @@ html[data-theme] #drawing-canvas-container {
   );
   background-size: 4px 5px;
   background-position: 0 0;
-  color: var(--dim, #8b949e);
+  color: var(--dim, #a6a198);
   opacity: 0.8;
 }
 .awtrix-live-toggle:hover::before {
-  color: var(--acc, #58a6ff);
+  color: var(--acc, #f5a568);
 }
 .awtrix-live-toggle.on {
-  background: color-mix(in srgb, var(--ok, #3fb950) 18%, var(--card2, #1c2129));
+  background: color-mix(in srgb, var(--ok, #8fbf72) 18%, var(--card2, #292927));
   box-shadow:
-    inset 0 0 0 1px var(--ok, #3fb950),
-    0 0 0 4px color-mix(in srgb, var(--ok, #3fb950) 22%, transparent);
+    inset 0 0 0 1px var(--ok, #8fbf72),
+    0 0 0 4px color-mix(in srgb, var(--ok, #8fbf72) 22%, transparent);
 }
 .awtrix-live-toggle.on::before {
-  color: var(--ok, #3fb950);
+  color: var(--ok, #8fbf72);
   opacity: 1;
   filter: drop-shadow(
-    0 0 2px color-mix(in srgb, var(--ok, #3fb950) 70%, transparent)
+    0 0 2px color-mix(in srgb, var(--ok, #8fbf72) 70%, transparent)
   );
 }
 
@@ -5263,9 +5390,9 @@ html[data-theme] #drawing-canvas-container {
   padding: 0 2px;
   border: none;
   border-radius: 6px;
-  background: var(--card2, #1c2129);
+  background: var(--card2, #292927);
   box-shadow: inset 0 0 0 1px var(--awx-hairline);
-  color: var(--fg, #e6edf3);
+  color: var(--fg, #f3f1ec);
   font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
   font-size: 14px;
   font-weight: 600;
@@ -5281,26 +5408,26 @@ html[data-theme] #drawing-canvas-container {
 }
 .input-fps:focus {
   outline: none;
-  box-shadow: inset 0 0 0 1px var(--acc, #58a6ff);
+  box-shadow: inset 0 0 0 1px var(--acc, #f5a568);
 }
 .awtrix-fps-unit {
   font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--dim, #8b949e);
+  color: var(--dim, #a6a198);
 }
 
 /* Onion-skin view toggle in the right rail. */
 .awtrix-onion-toggle {
-  color: var(--dim, #8b949e);
+  color: var(--dim, #a6a198);
   font-size: 22px;
   line-height: 46px;
   text-align: center;
   cursor: pointer;
 }
 .awtrix-onion-toggle.preview-toggle-onion-skin-enabled {
-  color: var(--acc, #58a6ff);
-  box-shadow: inset 0 0 0 1px var(--acc, #58a6ff);
+  color: var(--acc, #f5a568);
+  box-shadow: inset 0 0 0 1px var(--acc, #f5a568);
 }
 .cheatsheet-link,
 .performance-link {
@@ -5328,15 +5455,16 @@ html[data-theme] #drawing-canvas-container {
     height: 30px;
     opacity: 0.7;
   }
-  /* Frame-tile actions are hover-revealed upstream — invisible on touch.
-     Force visible and enlarge 30px → 40px. */
+  /* Frame-tile actions are hover-revealed upstream — invisible on touch, so
+     force them visible. The chip stays 30px because that is the sprite cell;
+     the tap target grows past it instead. */
   .preview-tile .tile-overlay {
     opacity: 0.85;
-    width: 40px;
-    height: 40px;
   }
-  .preview-tile .tile-overlay.tile-count {
-    line-height: 40px;
+  .preview-tile .tile-overlay::after {
+    content: "";
+    position: absolute;
+    inset: -5px;
   }
   #preview-fps {
     height: 32px;
